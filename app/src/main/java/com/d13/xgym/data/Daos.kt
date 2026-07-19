@@ -89,6 +89,14 @@ interface WorkoutDao {
     fun sessionsWithCategory(): Flow<List<SessionWithCategory>>
 
     @Query(
+        """SELECT s.*, c.name AS categoryName, 
+           (SELECT COUNT(*) FROM set_records r WHERE r.sessionId = s.id) AS setCount
+           FROM sessions s JOIN categories c ON c.id = s.categoryId
+           WHERE s.id = :id"""
+    )
+    suspend fun sessionWithCategory(id: Long): SessionWithCategory?
+
+    @Query(
         """SELECT r.*, e.name AS exerciseName
            FROM set_records r JOIN exercises e ON e.id = r.exerciseId
            WHERE r.sessionId = :sessionId

@@ -24,17 +24,39 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.d13.xgym.data.AppDatabase
 import com.d13.xgym.data.SetWithExercise
+import com.d13.xgym.data.SessionWithCategory
 
 @Composable
 fun SummaryScreen(nav: NavController, sessionId: Long) {
     val context = LocalContext.current
     var sets by remember { mutableStateOf<List<SetWithExercise>>(emptyList()) }
+    var sessionInfo by remember { mutableStateOf<SessionWithCategory?>(null) }
+    
     LaunchedEffect(sessionId) {
-        sets = AppDatabase.get(context).workoutDao().setsForSession(sessionId)
+        val db = AppDatabase.get(context)
+        sets = db.workoutDao().setsForSession(sessionId)
+        sessionInfo = db.workoutDao().sessionWithCategory(sessionId)
     }
 
     val byExercise = sets.groupBy { it.exerciseName }
     ListScaffold("Resumen de la sesión") {
+        item {
+            sessionInfo?.let { info ->
+                Card(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
+                    Column(Modifier.padding(16.dp)) {
+                        Text(info.categoryName, style = MaterialTheme.typography.headlineSmall)
+                        Spacer(Modifier.height(8.dp))
+                        Text("Fecha: ${info.session.date}", style = MaterialTheme.typography.bodyMedium)
+                        val totalTime = info.session.durationMs?.let { formatHMS(it) }
+                            ?: info.session.endTs?.minus(info.session.startTs)?.let { formatHMS(it) }
+                            ?: "En curso"
+                        Text("Tiempo total: $totalTime", style = MaterialTheme.typography.bodyMedium)
+                        Text("Series completadas: ${info.setCount}", style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+            }
+        }
+
         byExercise.forEach { (name, exSets) ->
             item {
                 Card(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
