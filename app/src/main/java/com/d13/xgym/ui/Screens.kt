@@ -23,6 +23,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,6 +38,7 @@ import androidx.compose.ui.zIndex
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.rememberSwipeToDismissBoxState
+import com.d13.xgym.data.AppDatabase
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.ui.graphics.Color
@@ -57,7 +59,9 @@ fun formatHMS(ms: Long): String {
 }
 
 @Composable
-fun HomeScreen(nav: NavController) {
+fun HomeScreen(nav: NavController, vm: WorkoutViewModel) {
+    val ui by vm.ui.collectAsStateWithLifecycle()
+    var showActiveSessionPrompt by remember { mutableStateOf(false) }
     Column(
         Modifier.fillMaxSize().safeDrawingPadding().padding(24.dp),
         verticalArrangement = Arrangement.SpaceBetween,
@@ -70,7 +74,13 @@ fun HomeScreen(nav: NavController) {
         ) {
             Text("xGym", style = MaterialTheme.typography.displayMedium)
             Spacer(Modifier.height(48.dp))
-            Button(onClick = { nav.navigate("categories") }, Modifier.fillMaxWidth()) {
+            Button(onClick = { 
+                if (ui.sessionId != null) {
+                    showActiveSessionPrompt = true
+                } else {
+                    nav.navigate("categories")
+                }
+            }, Modifier.fillMaxWidth()) {
                 Text("Iniciar entrenamiento", style = MaterialTheme.typography.titleLarge)
             }
             Spacer(Modifier.height(16.dp))
@@ -81,6 +91,27 @@ fun HomeScreen(nav: NavController) {
         OutlinedButton(onClick = { nav.navigate("settings") }, Modifier.fillMaxWidth()) {
             Text("⚙ Ajustes")
         }
+    }
+
+    if (showActiveSessionPrompt) {
+        AlertDialog(
+            onDismissRequest = { showActiveSessionPrompt = false },
+            title = { Text("Sesión activa") },
+            text = { Text("Actualmente tienes un entrenamiento en curso. ¿Deseas retomarlo o empezar uno nuevo?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    nav.navigate("workout")
+                    showActiveSessionPrompt = false
+                }) { Text("Retomar") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    vm.cancelCurrentSession()
+                    nav.navigate("categories")
+                    showActiveSessionPrompt = false
+                }) { Text("Empezar nuevo") }
+            }
+        )
     }
 }
 
@@ -154,10 +185,12 @@ fun SubcategoryScreen(nav: NavController, vm: WorkoutViewModel, categoryId: Long
 
 @Composable
 fun ExerciseScreen(nav: NavController, vm: WorkoutViewModel, categoryId: Long, subcategoryId: Long) {
-    val exercises by vm.catalogDao.exercises(subcategoryId).collectAsStateWithLifecycle(emptyList())
-
+    val context = LocalContext.current
     var showAdd by remember { mutableStateOf(false) }
     var newName by remember { mutableStateOf("") }
+    val exercises by AppDatabase.get(context).catalogDao()
+        .exercises(subcategoryId).collectAsStateWithLifecycle(emptyList<com.d13.xgym.data.Exercise>())
+
     val scope = androidx.compose.runtime.rememberCoroutineScope()
 
     var exerciseToDelete by remember { mutableStateOf<com.d13.xgym.data.Exercise?>(null) }

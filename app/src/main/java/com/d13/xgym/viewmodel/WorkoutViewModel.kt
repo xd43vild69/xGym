@@ -56,6 +56,22 @@ class WorkoutViewModel(app: Application) : AndroidViewModel(app) {
 
     init {
         viewModelScope.launch {
+            val now = System.currentTimeMillis()
+            val threshold = now - 12 * 60 * 60 * 1000L
+            workoutDao.closeStaleSessions(now, threshold)
+            
+            val activeSession = workoutDao.getActiveSession()
+            if (activeSession != null) {
+                _ui.update {
+                    it.copy(
+                        sessionId = activeSession.id,
+                        categoryId = activeSession.categoryId,
+                        sessionStartTs = activeSession.startTs,
+                        phase = Phase.IDLE
+                    )
+                }
+            }
+
             while (true) {
                 _ui.update {
                     val newElapsed = if (it.phase == Phase.IDLE) 0 else System.currentTimeMillis() - it.phaseStartTs
@@ -304,6 +320,62 @@ class WorkoutViewModel(app: Application) : AndroidViewModel(app) {
     fun deleteSession(session: Session) {
         viewModelScope.launch {
             workoutDao.deleteSession(session)
+        }
+    }
+
+    fun cancelCurrentSession() {
+        val s = _ui.value
+        val sessionId = s.sessionId ?: return
+        val now = System.currentTimeMillis()
+        viewModelScope.launch {
+            closeOpenRest(now)
+            workoutDao.session(sessionId)?.let { session ->
+                workoutDao.updateSession(session.copy(endTs = now, durationMs = s.sessionElapsedMs))
+            }
+            _ui.value = WorkoutUiState()
+        }
+    }
+
+    /** Cierra la sesión activa actual (si existe) y comienza una nueva desde cero. */
+    fun startNewSession(categoryId: Long, subcategoryId: Long, exerciseId: Long, exerciseName: String) {
+        val s = _ui.value
+        val sessionId = s.sessionId
+        val now = System.currentTimeMillis()
+        
+        viewModelScope.launch {
+            // Terminar sesión previa formalmente
+            if (sessionId != null) {
+                closeOpenRest(now)
+                workoutDao.session(sessionId)?.let { session ->
+                    // Si la sesión anterior no duró nada o no tenía series, se podría borrar. 
+                    // Pero por ahora solo la terminamos.
+                    workoutDao.updateSession(session.copy(endTs = now, durationMs = s.sessionElapsedMs))
+                }
+            }
+
+            // Iniciar nueva sesión
+            val newSessionId = workoutDao.insertSession(
+                Session(
+                    categoryId = categoryId,
+                    date = LocalDate.now().toString(),
+                    startTs = now
+                )
+            )
+
+            _ui.update {
+                it.copy(
+                    sessionId = newSessionId,
+                    categoryId = categoryId,
+                    subcategoryId = subcategoryId,
+                    exerciseId = exerciseId,
+                    exerciseName = exerciseName,
+                    setNumber = 1,
+                    phase = Phase.IDLE,
+                    elapsedMs = 0,
+                    sessionStartTs = null, // Todavía no presiona "Iniciar serie" de esta nueva
+                    sessionElapsedMs = 0
+                )
+            }
         }
     }
 }

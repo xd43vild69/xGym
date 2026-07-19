@@ -112,4 +112,10 @@ interface WorkoutDao {
 
     @androidx.room.Delete
     suspend fun deleteSession(session: Session)
+
+    @Query("UPDATE sessions SET endTs = :now, durationMs = (:now - startTs) WHERE endTs IS NULL AND startTs < :threshold")
+    suspend fun closeStaleSessions(now: Long, threshold: Long)
+
+    @Query("SELECT * FROM sessions WHERE endTs IS NULL ORDER BY startTs DESC LIMIT 1")
+    suspend fun getActiveSession(): Session?
 }
