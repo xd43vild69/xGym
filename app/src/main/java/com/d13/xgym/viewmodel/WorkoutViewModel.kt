@@ -300,4 +300,10 @@ class WorkoutViewModel(app: Application) : AndroidViewModel(app) {
             workoutDao.deleteSessionsByDate(LocalDate.now().toString())
         }
     }
+
+    fun deleteSession(session: Session) {
+        viewModelScope.launch {
+            workoutDao.deleteSession(session)
+        }
+    }
 }

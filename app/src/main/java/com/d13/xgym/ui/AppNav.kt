@@ -95,7 +95,7 @@ fun AppNav() {
         ) {
             SummaryScreen(nav, it.arguments!!.getLong("sessionId"))
         }
-        composable("history") { HistoryScreen(nav) }
+        composable("history") { HistoryScreen(nav, vm) }
         composable("settings") { SettingsScreen(nav, prefs, vm) }
     }
 }}

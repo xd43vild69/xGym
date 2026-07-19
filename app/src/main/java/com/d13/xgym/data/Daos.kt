@@ -109,4 +109,7 @@ interface WorkoutDao {
 
     @Query("DELETE FROM sessions")
     suspend fun deleteAllSessions()
+
+    @androidx.room.Delete
+    suspend fun deleteSession(session: Session)
 }
