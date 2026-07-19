@@ -182,16 +182,23 @@ fun ExerciseScreen(nav: NavController, vm: WorkoutViewModel, categoryId: Long, s
                             .fillMaxWidth()
                             .padding(vertical = 6.dp)
                         .graphicsLayer { this.translationY = translationY }
-                        .pointerInput(Unit) {
+                        .pointerInput(ex.id) {
                             detectDragGesturesAfterLongPress(
-                                onDragStart = { draggedItemIndex = index },
+                                onDragStart = {
+                                    // No usar `index`: este bloque sobrevive a los
+                                    // reordenamientos y lo capturaría obsoleto.
+                                    draggedItemIndex = exercises
+                                        .indexOfFirst { it.id == ex.id }
+                                        .takeIf { it >= 0 }
+                                },
                                 onDrag = { change, dragAmount ->
                                     change.consume()
                                     dragOffset += dragAmount.y
-                                    
+
                                     val currentIdx = draggedItemIndex ?: return@detectDragGesturesAfterLongPress
-                                    val itemHeight = 72.dp.toPx() // Approximation height
-                                    
+                                    // Alto real de la Card + separación vertical entre ítems
+                                    val itemHeight = size.height + 12.dp.toPx()
+
                                     var newIdx = currentIdx
                                     if (dragOffset > itemHeight && currentIdx < exercises.size - 1) {
                                         newIdx = currentIdx + 1
