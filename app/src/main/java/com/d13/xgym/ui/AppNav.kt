@@ -14,6 +14,7 @@ import android.content.Context
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -21,7 +22,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.collectAsState
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -99,5 +107,28 @@ fun AppNav() {
         composable("history") { HistoryScreen(nav, vm) }
         composable("settings") { SettingsScreen(nav, prefs, vm) }
         composable("weeklyPlan") { WeeklyPlanScreen(nav, prefs, vm) }
+        }
+
+        // Barra de navegación inferior
+        NavigationBar(Modifier.fillMaxWidth()) {
+            NavigationBarItem(
+                icon = { Icon(Icons.Filled.Home, contentDescription = "Home") },
+                label = { Text("Home") },
+                selected = currentRoute == "home",
+                onClick = { nav.navigate("home") { popUpTo("home") { inclusive = true } } }
+            )
+            NavigationBarItem(
+                icon = { Icon(Icons.Filled.List, contentDescription = "Historial") },
+                label = { Text("Historial") },
+                selected = currentRoute == "history",
+                onClick = { nav.navigate("history") }
+            )
+            NavigationBarItem(
+                icon = { Icon(Icons.Filled.Settings, contentDescription = "Ajustes") },
+                label = { Text("Ajustes") },
+                selected = currentRoute == "settings",
+                onClick = { nav.navigate("settings") }
+            )
+        }
     }
-}}
+}
