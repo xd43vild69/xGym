@@ -69,7 +69,7 @@ fun AppNav() {
 
         NavHost(navController = nav, startDestination = "home", modifier = Modifier.weight(1f)) {
             composable("home") { HomeScreen(nav, vm) }
-        composable("categories") { CategoryScreen(nav, vm) }
+        composable("categories") { CategoryScreen(nav, vm, prefs) }
         composable(
             "subcategories/{categoryId}",
             arguments = listOf(navArgument("categoryId") { type = NavType.LongType })

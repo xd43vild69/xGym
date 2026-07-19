@@ -117,8 +117,13 @@ fun HomeScreen(nav: NavController, vm: WorkoutViewModel) {
 }
 
 @Composable
-fun CategoryScreen(nav: NavController, vm: WorkoutViewModel) {
+fun CategoryScreen(nav: NavController, vm: WorkoutViewModel, prefs: com.d13.xgym.data.Preferences) {
     val categories by vm.catalogDao.categories().collectAsStateWithLifecycle(emptyList())
+
+    // Categorías planeadas para hoy: si el día tiene alguna, el resto se atenúa (pero sigue clicable).
+    val todayIndex = java.time.LocalDate.now().dayOfWeek.value - 1
+    val todaySet = remember { prefs.weeklyPlan[todayIndex].categoryIds.toSet() }
+    val hasPlan = todaySet.isNotEmpty()
 
     Column(Modifier.fillMaxSize().safeDrawingPadding().padding(24.dp)) {
         Text("Elige categoría", style = MaterialTheme.typography.headlineMedium)
@@ -129,6 +134,7 @@ fun CategoryScreen(nav: NavController, vm: WorkoutViewModel) {
             key = { it.id },
             onReorder = { vm.reorderCategories(it) }
         ) { cat, dragModifier, isDragged ->
+            val enabled = !hasPlan || cat.id in todaySet
             Card(
                 Modifier
                     .fillMaxWidth()
@@ -139,7 +145,14 @@ fun CategoryScreen(nav: NavController, vm: WorkoutViewModel) {
                 TextButton(
                     onClick = { nav.navigate("subcategories/${cat.id}") },
                     Modifier.fillMaxWidth()
-                ) { Text(cat.name, style = MaterialTheme.typography.titleMedium) }
+                ) {
+                    Text(
+                        cat.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = if (enabled) MaterialTheme.colorScheme.onSurface
+                        else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                    )
+                }
             }
         }
     }

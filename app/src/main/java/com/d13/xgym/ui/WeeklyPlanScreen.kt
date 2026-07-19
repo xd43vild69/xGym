@@ -1,6 +1,7 @@
 package com.d13.xgym.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,12 +16,16 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -33,15 +38,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.d13.xgym.data.Category
+import com.d13.xgym.data.DayPlan
 import com.d13.xgym.data.Preferences
-import com.d13.xgym.ui.theme.OnSurfaceVariant
 import com.d13.xgym.ui.theme.Outline
 import com.d13.xgym.viewmodel.WorkoutViewModel
 import java.time.LocalDate
@@ -50,23 +54,13 @@ private val dayNames = listOf(
     "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"
 )
 
-private val categoryPalette = listOf(
-    Color(0xFF00E5FF), // cian
-    Color(0xFFFFB300), // ámbar
-    Color(0xFF4CAF50), // verde
-    Color(0xFFAB47BC)  // púrpura
-)
-
-private fun slotColor(code: Int): Color = when (code) {
-    Preferences.EMPTY -> Outline
-    Preferences.REST -> OnSurfaceVariant
-    else -> categoryPalette[(code - 1).mod(categoryPalette.size)]
-}
-
-private fun slotLabel(code: Int, categories: List<Category>): String = when (code) {
-    Preferences.EMPTY -> "— Sin asignar"
-    Preferences.REST -> "Descanso"
-    else -> categories.firstOrNull { it.id == code.toLong() }?.name ?: "— Sin asignar"
+private fun dayLabel(day: DayPlan, categories: List<Category>): String = when {
+    day.rest -> "Descanso"
+    day.categoryIds.isEmpty() -> "— Sin asignar"
+    else -> day.categoryIds
+        .mapNotNull { id -> categories.firstOrNull { it.id == id }?.name }
+        .joinToString(", ")
+        .ifEmpty { "— Sin asignar" }
 }
 
 @Composable
@@ -78,13 +72,13 @@ fun WeeklyPlanScreen(nav: NavController, prefs: Preferences, vm: WorkoutViewMode
 
     val todayIndex = LocalDate.now().dayOfWeek.value - 1 // 0=Lunes … 6=Domingo
 
-    fun setDay(day: Int, code: Int) {
-        plan = plan.toMutableList().also { it[day] = code }
+    fun setDay(day: Int, value: DayPlan) {
+        plan = plan.toMutableList().also { it[day] = value }
         prefs.weeklyPlan = plan
     }
 
-    val trainingCount = plan.count { it > 0 }
-    val restCount = plan.count { it == Preferences.REST }
+    val trainingCount = plan.count { it.categoryIds.isNotEmpty() }
+    val restCount = plan.count { it.rest }
 
     Column(Modifier.fillMaxSize().safeDrawingPadding().padding(24.dp)) {
         Text("Plan semanal", style = MaterialTheme.typography.headlineMedium)
@@ -98,8 +92,13 @@ fun WeeklyPlanScreen(nav: NavController, prefs: Preferences, vm: WorkoutViewMode
 
         LazyColumn(Modifier.weight(1f)) {
             items(7) { day ->
-                val code = plan[day]
+                val dayPlan = plan[day]
                 val isToday = day == todayIndex
+                val barColor = when {
+                    dayPlan.categoryIds.isNotEmpty() -> MaterialTheme.colorScheme.primary
+                    dayPlan.rest -> MaterialTheme.colorScheme.onSurfaceVariant
+                    else -> Outline
+                }
                 Card(
                     Modifier
                         .fillMaxWidth()
@@ -114,13 +113,13 @@ fun WeeklyPlanScreen(nav: NavController, prefs: Preferences, vm: WorkoutViewMode
                         Modifier.fillMaxSize(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Barra de color-coding
+                        // Barra de acento
                         Box(
                             Modifier
                                 .width(6.dp)
                                 .fillMaxHeight()
                                 .clip(RoundedCornerShape(topStart = 4.dp, bottomStart = 4.dp))
-                                .background(slotColor(code))
+                                .background(barColor)
                         )
                         TextButton(
                             onClick = { dayToEdit = day },
@@ -142,9 +141,9 @@ fun WeeklyPlanScreen(nav: NavController, prefs: Preferences, vm: WorkoutViewMode
                                 )
                                 Spacer(Modifier.height(2.dp))
                                 Text(
-                                    slotLabel(code, categories),
+                                    dayLabel(dayPlan, categories),
                                     style = MaterialTheme.typography.bodyMedium,
-                                    color = if (code == Preferences.EMPTY)
+                                    color = if (dayPlan.categoryIds.isEmpty() && !dayPlan.rest)
                                         MaterialTheme.colorScheme.onSurfaceVariant
                                     else MaterialTheme.colorScheme.onSurface,
                                     maxLines = 1,
@@ -170,24 +169,17 @@ fun WeeklyPlanScreen(nav: NavController, prefs: Preferences, vm: WorkoutViewMode
         }
     }
 
-    // Diálogo de edición de un día
+    // Diálogo de edición de un día (multi-selección)
     dayToEdit?.let { day ->
-        AlertDialog(
-            onDismissRequest = { dayToEdit = null },
-            title = { Text(dayNames[day]) },
-            text = {
-                Column {
-                    DayOption("Descanso") { setDay(day, Preferences.REST); dayToEdit = null }
-                    categories.forEach { cat ->
-                        DayOption(cat.name) { setDay(day, cat.id.toInt()); dayToEdit = null }
-                    }
-                    DayOption("Vaciar día", tint = MaterialTheme.colorScheme.onSurfaceVariant) {
-                        setDay(day, Preferences.EMPTY); dayToEdit = null
-                    }
-                }
-            },
-            confirmButton = {},
-            dismissButton = { TextButton(onClick = { dayToEdit = null }) { Text("Cancelar") } }
+        DayEditDialog(
+            dayName = dayNames[day],
+            categories = categories,
+            initial = plan[day],
+            onDismiss = { dayToEdit = null },
+            onSave = { updated ->
+                setDay(day, updated)
+                dayToEdit = null
+            }
         )
     }
 
@@ -198,7 +190,7 @@ fun WeeklyPlanScreen(nav: NavController, prefs: Preferences, vm: WorkoutViewMode
             text = { Text("Se quitará la asignación de todos los días.") },
             confirmButton = {
                 TextButton(onClick = {
-                    plan = List(7) { Preferences.EMPTY }
+                    plan = List(7) { DayPlan() }
                     prefs.weeklyPlan = plan
                     showClearWeekDialog = false
                 }) { Text("Limpiar", color = MaterialTheme.colorScheme.error) }
@@ -209,13 +201,71 @@ fun WeeklyPlanScreen(nav: NavController, prefs: Preferences, vm: WorkoutViewMode
 }
 
 @Composable
-private fun DayOption(label: String, tint: Color? = null, onClick: () -> Unit) {
-    TextButton(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
-        Text(
-            label,
-            style = MaterialTheme.typography.bodyLarge,
-            color = tint ?: MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.fillMaxWidth()
-        )
+private fun DayEditDialog(
+    dayName: String,
+    categories: List<Category>,
+    initial: DayPlan,
+    onDismiss: () -> Unit,
+    onSave: (DayPlan) -> Unit
+) {
+    var editRest by remember { mutableStateOf(initial.rest) }
+    var editSelected by remember { mutableStateOf(initial.categoryIds.toSet()) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(dayName) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                CheckRow(
+                    label = "Descanso",
+                    checked = editRest,
+                    onToggle = {
+                        editRest = !editRest
+                        if (editRest) editSelected = emptySet()
+                    }
+                )
+                HorizontalDivider(Modifier.padding(vertical = 4.dp))
+                categories.forEach { cat ->
+                    CheckRow(
+                        label = cat.name,
+                        checked = cat.id in editSelected,
+                        onToggle = {
+                            editSelected = if (cat.id in editSelected)
+                                editSelected - cat.id
+                            else editSelected + cat.id
+                            if (editSelected.isNotEmpty()) editRest = false
+                        }
+                    )
+                }
+                Spacer(Modifier.height(4.dp))
+                TextButton(
+                    onClick = { editRest = false; editSelected = emptySet() },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Vaciar día", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                onSave(DayPlan(rest = editRest, categoryIds = editSelected.toList()))
+            }) { Text("Guardar") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }
+    )
+}
+
+@Composable
+private fun CheckRow(label: String, checked: Boolean, onToggle: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clickable { onToggle() }
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Checkbox(checked = checked, onCheckedChange = { onToggle() })
+        Spacer(Modifier.width(8.dp))
+        Text(label, style = MaterialTheme.typography.bodyLarge)
     }
 }
