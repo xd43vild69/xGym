@@ -59,7 +59,7 @@ fun AppNav() {
                 )
                 Spacer(Modifier.weight(1f))
                 Text(
-                    text = formatHMS(uiState.sessionElapsedPausedMs),
+                    text = formatHMS(uiState.sessionElapsedMs),
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
@@ -98,4 +98,4 @@ fun AppNav() {
         composable("history") { HistoryScreen(nav) }
         composable("settings") { SettingsScreen(nav, prefs, vm) }
     }
-}
+}}

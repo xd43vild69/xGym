@@ -44,21 +44,9 @@ import com.d13.xgym.viewmodel.WorkoutViewModel
 fun WorkoutScreen(nav: NavController, vm: WorkoutViewModel) {
     val ui by vm.ui.collectAsStateWithLifecycle()
     var repsText by remember { mutableStateOf("") }
-    val lifecycleOwner = LocalLifecycleOwner.current
-
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            when (event) {
-                Lifecycle.Event.ON_RESUME -> vm.resumeSessionTimer()
-                Lifecycle.Event.ON_PAUSE -> vm.pauseSessionTimer()
-                else -> {}
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-        }
-    }
+    
+    // Al salir por completo (sin navegar), limpiar el flag de sesión activa si fuera necesario, 
+    // pero ahora el timer es continuo, así que no hacemos nada especial con el ciclo de vida.
 
     Column(
         Modifier.fillMaxSize().safeDrawingPadding().padding(24.dp),
@@ -71,7 +59,7 @@ fun WorkoutScreen(nav: NavController, vm: WorkoutViewModel) {
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Text(formatHMS(ui.sessionElapsedPausedMs), style = MaterialTheme.typography.displaySmall)
+            Text(formatHMS(ui.sessionElapsedMs), style = MaterialTheme.typography.displaySmall)
             Spacer(Modifier.height(24.dp))
             Text(ui.exerciseName, style = MaterialTheme.typography.headlineMedium)
             Text(
