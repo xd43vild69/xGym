@@ -93,7 +93,7 @@ class WorkoutViewModel(app: Application) : AndroidViewModel(app) {
                             phase = Phase.IDLE,
                             exerciseId = lastSet?.set?.exerciseId,
                             exerciseName = lastSet?.exerciseName ?: "",
-                            setNumber = (lastSet?.set?.setNumber ?: 0) + 1
+                            setNumber = lastSet?.set?.setNumber ?: 0
                         )
                     }
                 }
@@ -183,7 +183,7 @@ class WorkoutViewModel(app: Application) : AndroidViewModel(app) {
                     subcategoryId = subcategoryId,
                     exerciseId = exerciseId,
                     exerciseName = exerciseName,
-                    setNumber = 1,
+                    setNumber = 0,
                     phase = Phase.IDLE,
                     elapsedMs = 0
                 )
@@ -271,12 +271,13 @@ class WorkoutViewModel(app: Application) : AndroidViewModel(app) {
         val sessionId = s.sessionId ?: return
         if (s.phase != Phase.EXERCISING) return
         val now = System.currentTimeMillis()
+        val completed = s.setNumber + 1
         viewModelScope.launch {
             val setId = workoutDao.insertSet(
                 SetRecord(
                     sessionId = sessionId,
                     exerciseId = exerciseId,
-                    setNumber = s.setNumber,
+                    setNumber = completed,
                     exerciseStartTs = s.phaseStartTs,
                     exerciseEndTs = now
                 )
@@ -287,7 +288,7 @@ class WorkoutViewModel(app: Application) : AndroidViewModel(app) {
                     phaseStartTs = now,
                     elapsedMs = 0,
                     pendingSetId = setId,
-                    setNumber = it.setNumber + 1,
+                    setNumber = completed,
                     restDurationMs = prefs.restDurationSeconds * 1000L
                 )
             }
@@ -344,7 +345,7 @@ class WorkoutViewModel(app: Application) : AndroidViewModel(app) {
                     subcategoryId = subcategoryId,
                     exerciseId = exerciseId,
                     exerciseName = exerciseName,
-                    setNumber = 1,
+                    setNumber = 0,
                     phase = Phase.IDLE,
                     elapsedMs = 0
                 )
@@ -364,7 +365,7 @@ class WorkoutViewModel(app: Application) : AndroidViewModel(app) {
                     SetRecord(
                         sessionId = sessionId,
                         exerciseId = s.exerciseId,
-                        setNumber = s.setNumber,
+                        setNumber = s.setNumber + 1,
                         exerciseStartTs = s.phaseStartTs,
                         exerciseEndTs = now
                     )
@@ -464,7 +465,7 @@ class WorkoutViewModel(app: Application) : AndroidViewModel(app) {
                     subcategoryId = subcategoryId,
                     exerciseId = exerciseId,
                     exerciseName = exerciseName,
-                    setNumber = 1,
+                    setNumber = 0,
                     phase = Phase.IDLE,
                     elapsedMs = 0,
                     sessionStartTs = null, // Todavía no presiona "Iniciar serie" de esta nueva

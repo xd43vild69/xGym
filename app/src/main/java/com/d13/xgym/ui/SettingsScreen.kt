@@ -78,7 +78,7 @@ fun SettingsScreen(nav: NavController, prefs: Preferences, vm: WorkoutViewModel)
                                     val sec = filtered.toIntOrNull() ?: 90
                                     if (sec > 0) prefs.restDurationSeconds = sec
                                 },
-                                label = { Text("s") },
+                                label = { Text("seg") },
                                 keyboardOptions = KeyboardOptions(
                                     keyboardType = KeyboardType.Number,
                                     imeAction = ImeAction.Done

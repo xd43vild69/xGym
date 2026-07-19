@@ -81,11 +81,7 @@ fun HomeScreen(nav: NavController, vm: WorkoutViewModel) {
                     nav.navigate("categories")
                 }
             }, Modifier.fillMaxWidth()) {
-                Text("Iniciar entrenamiento", style = MaterialTheme.typography.titleLarge)
-            }
-            Spacer(Modifier.height(16.dp))
-            OutlinedButton(onClick = { nav.navigate("history") }, Modifier.fillMaxWidth()) {
-                Text("Historial")
+                Text("Entrenar", style = MaterialTheme.typography.titleLarge)
             }
         }
     }
