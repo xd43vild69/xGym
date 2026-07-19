@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -35,10 +34,6 @@ import androidx.navigation.NavController
 import com.d13.xgym.viewmodel.WorkoutViewModel
 import kotlinx.coroutines.launch
 import androidx.compose.ui.zIndex
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.rememberSwipeToDismissBoxState
@@ -92,9 +87,23 @@ fun HomeScreen(nav: NavController) {
 @Composable
 fun CategoryScreen(nav: NavController, vm: WorkoutViewModel) {
     val categories by vm.catalogDao.categories().collectAsStateWithLifecycle(emptyList())
-    ListScaffold("Elige categoría") {
-        items(categories) { cat ->
-            Card(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
+
+    Column(Modifier.fillMaxSize().safeDrawingPadding().padding(24.dp)) {
+        Text("Elige categoría", style = MaterialTheme.typography.headlineMedium)
+        Spacer(Modifier.height(16.dp))
+
+        DraggableList(
+            items = categories,
+            key = { it.id },
+            onReorder = { vm.reorderCategories(it) }
+        ) { cat, dragModifier, isDragged ->
+            Card(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 6.dp)
+                    .zIndex(if (isDragged) 1f else 0f)
+                    .then(dragModifier)
+            ) {
                 TextButton(
                     onClick = { nav.navigate("subcategories/${cat.id}") },
                     Modifier.fillMaxWidth()
@@ -106,15 +115,12 @@ fun CategoryScreen(nav: NavController, vm: WorkoutViewModel) {
 
 @Composable
 fun SubcategoryScreen(nav: NavController, vm: WorkoutViewModel, categoryId: Long) {
-    val dbSubs by vm.catalogDao.subcategories(categoryId).collectAsStateWithLifecycle(emptyList())
-    var subs by remember(dbSubs) { mutableStateOf(dbSubs) }
-    var draggedItemIndex by remember { mutableStateOf<Int?>(null) }
-    var dragOffset by remember { mutableStateOf(0f) }
+    val subs by vm.catalogDao.subcategories(categoryId).collectAsStateWithLifecycle(emptyList())
 
     // Categorías con una sola subcategoría saltan directo a ejercicios.
-    if (dbSubs.size == 1) {
-        androidx.compose.runtime.LaunchedEffect(dbSubs) {
-            nav.navigate("exercises/$categoryId/${dbSubs[0].id}") {
+    if (subs.size == 1) {
+        androidx.compose.runtime.LaunchedEffect(subs) {
+            nav.navigate("exercises/$categoryId/${subs[0].id}") {
                 popUpTo("subcategories/{categoryId}") { inclusive = true }
             }
         }
@@ -125,70 +131,22 @@ fun SubcategoryScreen(nav: NavController, vm: WorkoutViewModel, categoryId: Long
         Text("Elige subcategoría", style = MaterialTheme.typography.headlineMedium)
         Spacer(Modifier.height(16.dp))
 
-        LazyColumn {
-            itemsIndexed(subs, key = { _, sub -> sub.id }) { index, sub ->
-                val isDragged = index == draggedItemIndex
-                val translationY = if (isDragged) dragOffset else 0f
-
-                Card(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 6.dp)
-                        .graphicsLayer { this.translationY = translationY }
-                        .zIndex(if (isDragged) 1f else 0f)
-                        .pointerInput(sub.id) {
-                            detectDragGesturesAfterLongPress(
-                                onDragStart = {
-                                    // Buscar la posición por id (estable), no por `index`.
-                                    draggedItemIndex = subs
-                                        .indexOfFirst { it.id == sub.id }
-                                        .takeIf { it >= 0 }
-                                },
-                                onDrag = { change, dragAmount ->
-                                    change.consume()
-                                    dragOffset += dragAmount.y
-
-                                    val currentIdx = draggedItemIndex ?: return@detectDragGesturesAfterLongPress
-                                    val itemHeight = size.height + 12.dp.toPx()
-
-                                    var newIdx = currentIdx
-                                    if (dragOffset > itemHeight && currentIdx < subs.size - 1) {
-                                        newIdx = currentIdx + 1
-                                        dragOffset -= itemHeight
-                                    } else if (dragOffset < -itemHeight && currentIdx > 0) {
-                                        newIdx = currentIdx - 1
-                                        dragOffset += itemHeight
-                                    }
-
-                                    if (newIdx != currentIdx) {
-                                        subs = subs.toMutableList().apply {
-                                            val item = removeAt(currentIdx)
-                                            add(newIdx, item)
-                                        }
-                                        draggedItemIndex = newIdx
-                                    }
-                                },
-                                onDragEnd = {
-                                    draggedItemIndex = null
-                                    dragOffset = 0f
-                                    vm.reorderSubcategories(subs)
-                                },
-                                onDragCancel = {
-                                    draggedItemIndex = null
-                                    dragOffset = 0f
-                                }
-                            )
-                        }
-                ) {
-                    TextButton(
-                        onClick = {
-                            if (draggedItemIndex == null) {
-                                nav.navigate("exercises/$categoryId/${sub.id}")
-                            }
-                        },
-                        Modifier.fillMaxWidth()
-                    ) { Text(sub.name, style = MaterialTheme.typography.titleMedium) }
-                }
+        DraggableList(
+            items = subs,
+            key = { it.id },
+            onReorder = { vm.reorderSubcategories(it) }
+        ) { sub, dragModifier, isDragged ->
+            Card(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 6.dp)
+                    .zIndex(if (isDragged) 1f else 0f)
+                    .then(dragModifier)
+            ) {
+                TextButton(
+                    onClick = { nav.navigate("exercises/$categoryId/${sub.id}") },
+                    Modifier.fillMaxWidth()
+                ) { Text(sub.name, style = MaterialTheme.typography.titleMedium) }
             }
         }
     }
@@ -196,15 +154,12 @@ fun SubcategoryScreen(nav: NavController, vm: WorkoutViewModel, categoryId: Long
 
 @Composable
 fun ExerciseScreen(nav: NavController, vm: WorkoutViewModel, categoryId: Long, subcategoryId: Long) {
-    val dbExercises by vm.catalogDao.exercises(subcategoryId).collectAsStateWithLifecycle(emptyList())
-    var exercises by remember(dbExercises) { mutableStateOf(dbExercises) }
-    
+    val exercises by vm.catalogDao.exercises(subcategoryId).collectAsStateWithLifecycle(emptyList())
+
     var showAdd by remember { mutableStateOf(false) }
     var newName by remember { mutableStateOf("") }
     val scope = androidx.compose.runtime.rememberCoroutineScope()
 
-    var draggedItemIndex by remember { mutableStateOf<Int?>(null) }
-    var dragOffset by remember { mutableStateOf(0f) }
     var exerciseToDelete by remember { mutableStateOf<com.d13.xgym.data.Exercise?>(null) }
     var exerciseToRename by remember { mutableStateOf<com.d13.xgym.data.Exercise?>(null) }
     var renameText by remember { mutableStateOf("") }
@@ -212,124 +167,76 @@ fun ExerciseScreen(nav: NavController, vm: WorkoutViewModel, categoryId: Long, s
     Column(Modifier.fillMaxSize().safeDrawingPadding().padding(24.dp)) {
         Text("Elige ejercicio", style = MaterialTheme.typography.headlineMedium)
         Spacer(Modifier.height(16.dp))
-        
-        LazyColumn {
-            itemsIndexed(exercises, key = { _, ex -> ex.id }) { index, ex ->
-                val isDragged = index == draggedItemIndex
-                val translationY = if (isDragged) dragOffset else 0f
-                
-                val dismissState = rememberSwipeToDismissBoxState(
-                    confirmValueChange = {
-                        when (it) {
-                            SwipeToDismissBoxValue.EndToStart -> exerciseToDelete = ex
-                            SwipeToDismissBoxValue.StartToEnd -> {
-                                exerciseToRename = ex
-                                renameText = ex.name
-                            }
-                            else -> {}
+
+        DraggableList(
+            items = exercises,
+            key = { it.id },
+            onReorder = { vm.reorderExercises(it) },
+            footer = {
+                OutlinedButton(onClick = { showAdd = true }, Modifier.fillMaxWidth().padding(top = 12.dp)) {
+                    Text("+ Agregar ejercicio")
+                }
+            }
+        ) { ex, dragModifier, isDragged ->
+            val dismissState = rememberSwipeToDismissBoxState(
+                confirmValueChange = {
+                    when (it) {
+                        SwipeToDismissBoxValue.EndToStart -> exerciseToDelete = ex
+                        SwipeToDismissBoxValue.StartToEnd -> {
+                            exerciseToRename = ex
+                            renameText = ex.name
                         }
-                        false // Snap back, wait for dialog confirmation
+                        else -> {}
                     }
-                )
+                    false // Snap back, wait for dialog confirmation
+                }
+            )
 
-                SwipeToDismissBox(
-                    state = dismissState,
-                    enableDismissFromStartToEnd = !isDragged,
-                    enableDismissFromEndToStart = !isDragged,
-                    backgroundContent = {
-                        // Solo mostrar icono y fondo durante un swipe.
-                        // En reposo, currentValue == targetValue == Settled (progress == 1f),
-                        // por eso no se puede usar `progress` para ocultarlo.
-                        when (dismissState.targetValue) {
-                            SwipeToDismissBoxValue.EndToStart -> Box(
-                                Modifier
-                                    .fillMaxSize()
-                                    .padding(vertical = 6.dp)
-                                    .background(Color.Red),
-                                Alignment.CenterEnd
-                            ) {
-                                Text("🗑️", Modifier.padding(end = 24.dp), style = MaterialTheme.typography.headlineMedium)
-                            }
-                            SwipeToDismissBoxValue.StartToEnd -> Box(
-                                Modifier
-                                    .fillMaxSize()
-                                    .padding(vertical = 6.dp)
-                                    .background(Color(0xFF2196F3)),
-                                Alignment.CenterStart
-                            ) {
-                                Text("✏️", Modifier.padding(start = 24.dp), style = MaterialTheme.typography.headlineMedium)
-                            }
-                            else -> {}
+            SwipeToDismissBox(
+                state = dismissState,
+                enableDismissFromStartToEnd = !isDragged,
+                enableDismissFromEndToStart = !isDragged,
+                backgroundContent = {
+                    // Solo mostrar icono y fondo durante un swipe.
+                    // En reposo, currentValue == targetValue == Settled (progress == 1f),
+                    // por eso no se puede usar `progress` para ocultarlo.
+                    when (dismissState.targetValue) {
+                        SwipeToDismissBoxValue.EndToStart -> Box(
+                            Modifier
+                                .fillMaxSize()
+                                .padding(vertical = 6.dp)
+                                .background(Color.Red),
+                            Alignment.CenterEnd
+                        ) {
+                            Text("🗑️", Modifier.padding(end = 24.dp), style = MaterialTheme.typography.headlineMedium)
                         }
-                    },
-                    modifier = Modifier.zIndex(if (isDragged) 1f else 0f)
-                ) {
-                    Card(
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 6.dp)
-                        .graphicsLayer { this.translationY = translationY }
-                        .pointerInput(ex.id) {
-                            detectDragGesturesAfterLongPress(
-                                onDragStart = {
-                                    // No usar `index`: este bloque sobrevive a los
-                                    // reordenamientos y lo capturaría obsoleto.
-                                    draggedItemIndex = exercises
-                                        .indexOfFirst { it.id == ex.id }
-                                        .takeIf { it >= 0 }
-                                },
-                                onDrag = { change, dragAmount ->
-                                    change.consume()
-                                    dragOffset += dragAmount.y
-
-                                    val currentIdx = draggedItemIndex ?: return@detectDragGesturesAfterLongPress
-                                    // Alto real de la Card + separación vertical entre ítems
-                                    val itemHeight = size.height + 12.dp.toPx()
-
-                                    var newIdx = currentIdx
-                                    if (dragOffset > itemHeight && currentIdx < exercises.size - 1) {
-                                        newIdx = currentIdx + 1
-                                        dragOffset -= itemHeight
-                                    } else if (dragOffset < -itemHeight && currentIdx > 0) {
-                                        newIdx = currentIdx - 1
-                                        dragOffset += itemHeight
-                                    }
-                                    
-                                    if (newIdx != currentIdx) {
-                                        exercises = exercises.toMutableList().apply {
-                                            val item = removeAt(currentIdx)
-                                            add(newIdx, item)
-                                        }
-                                        draggedItemIndex = newIdx
-                                    }
-                                },
-                                onDragEnd = {
-                                    draggedItemIndex = null
-                                    dragOffset = 0f
-                                    vm.reorderExercises(exercises)
-                                },
-                                onDragCancel = {
-                                    draggedItemIndex = null
-                                    dragOffset = 0f
-                                }
-                            )
+                        SwipeToDismissBoxValue.StartToEnd -> Box(
+                            Modifier
+                                .fillMaxSize()
+                                .padding(vertical = 6.dp)
+                                .background(Color(0xFF2196F3)),
+                            Alignment.CenterStart
+                        ) {
+                            Text("✏️", Modifier.padding(start = 24.dp), style = MaterialTheme.typography.headlineMedium)
                         }
+                        else -> {}
+                    }
+                },
+                modifier = Modifier.zIndex(if (isDragged) 1f else 0f)
+            ) {
+                Card(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 6.dp)
+                        .then(dragModifier)
                 ) {
                     TextButton(
                         onClick = {
-                            if (draggedItemIndex == null) {
-                                vm.selectExercise(categoryId, subcategoryId, ex.id, ex.name)
-                                nav.navigate("workout")
-                            }
+                            vm.selectExercise(categoryId, subcategoryId, ex.id, ex.name)
+                            nav.navigate("workout")
                         },
                         Modifier.fillMaxWidth()
                     ) { Text(ex.name, style = MaterialTheme.typography.titleMedium) }
-                }
-                } // End SwipeToDismissBox
-            }
-            item {
-                OutlinedButton(onClick = { showAdd = true }, Modifier.fillMaxWidth().padding(top = 12.dp)) {
-                    Text("+ Agregar ejercicio")
                 }
             }
         }
@@ -368,9 +275,7 @@ fun ExerciseScreen(nav: NavController, vm: WorkoutViewModel, categoryId: Long, s
             text = { Text("¿Estás seguro de que deseas eliminar '${exerciseToDelete?.name}'?") },
             confirmButton = {
                 TextButton(onClick = {
-                    val ex = exerciseToDelete!!
-                    exercises = exercises.filter { it.id != ex.id }
-                    vm.deleteExercise(ex)
+                    vm.deleteExercise(exerciseToDelete!!)
                     exerciseToDelete = null
                 }) { Text("Eliminar", color = MaterialTheme.colorScheme.error) }
             },
@@ -396,7 +301,6 @@ fun ExerciseScreen(nav: NavController, vm: WorkoutViewModel, categoryId: Long, s
                     val ex = exerciseToRename!!
                     val name = renameText.trim()
                     if (name.isNotEmpty() && name != ex.name) {
-                        exercises = exercises.map { if (it.id == ex.id) it.copy(name = name) else it }
                         vm.renameExercise(ex, name)
                     }
                     exerciseToRename = null

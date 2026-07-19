@@ -9,8 +9,11 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface CatalogDao {
-    @Query("SELECT * FROM categories ORDER BY id")
+    @Query("SELECT * FROM categories ORDER BY orderIndex ASC, id ASC")
     fun categories(): Flow<List<Category>>
+
+    @Update
+    suspend fun updateCategories(categories: List<Category>)
 
     @Query("SELECT * FROM subcategories WHERE categoryId = :categoryId ORDER BY orderIndex ASC, id ASC")
     fun subcategories(categoryId: Long): Flow<List<Subcategory>>
