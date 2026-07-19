@@ -26,7 +26,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -54,21 +53,18 @@ fun SettingsScreen(nav: NavController, prefs: Preferences, vm: WorkoutViewModel)
                     Column(Modifier.padding(16.dp)) {
                         Text("Duración del descanso (segundos)", style = MaterialTheme.typography.titleMedium)
                         Spacer(Modifier.height(12.dp))
-                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            OutlinedTextField(
-                                value = restText,
-                                onValueChange = { restText = it.filter { c -> c.isDigit() } },
-                                label = { Text("Segundos") },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                modifier = Modifier.weight(1f)
-                            )
-                            Spacer(Modifier.padding(8.dp))
-                            Button(onClick = {
-                                val sec = restText.toIntOrNull() ?: 90
+                        OutlinedTextField(
+                            value = restText,
+                            onValueChange = { 
+                                val filtered = it.filter { c -> c.isDigit() }
+                                restText = filtered
+                                val sec = filtered.toIntOrNull() ?: 90
                                 if (sec > 0) prefs.restDurationSeconds = sec
-                                restText = prefs.restDurationSeconds.toString()
-                            }) { Text("Guardar") }
-                        }
+                            },
+                            label = { Text("Segundos") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.fillMaxWidth()
+                        )
                         Spacer(Modifier.height(8.dp))
                         Text(
                             "Al cumplirse este tiempo en descanso, el celular vibrará.",
@@ -96,8 +92,8 @@ fun SettingsScreen(nav: NavController, prefs: Preferences, vm: WorkoutViewModel)
                 OutlinedButton(
                     onClick = { showClearAllDialog = true },
                     modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Red)
-                ) { Text("Limpiar todo el historial", color = Color.Red) }
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) { Text("Limpiar todo el historial", color = MaterialTheme.colorScheme.error) }
             }
 
             item {

@@ -35,6 +35,8 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.d13.xgym.ui.theme.PhaseExercising
+import com.d13.xgym.ui.theme.PhaseResting
 import com.d13.xgym.viewmodel.Phase
 import com.d13.xgym.viewmodel.WorkoutViewModel
 
@@ -64,10 +66,19 @@ fun WorkoutScreen(nav: NavController, vm: WorkoutViewModel) {
         verticalArrangement = Arrangement.SpaceBetween
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(formatHMS(ui.sessionElapsedPausedMs), style = MaterialTheme.typography.titleSmall)
-            Spacer(Modifier.height(8.dp))
+            Text(
+                "Tiempo total",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(formatHMS(ui.sessionElapsedPausedMs), style = MaterialTheme.typography.displaySmall)
+            Spacer(Modifier.height(24.dp))
             Text(ui.exerciseName, style = MaterialTheme.typography.headlineMedium)
-            Text("Serie ${ui.setNumber}", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Serie ${ui.setNumber}",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
 
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -79,8 +90,8 @@ fun WorkoutScreen(nav: NavController, vm: WorkoutViewModel) {
                 },
                 style = MaterialTheme.typography.titleLarge,
                 color = when (ui.phase) {
-                    Phase.EXERCISING -> Color(0xFF4CAF50)
-                    Phase.RESTING -> Color(0xFF2196F3)
+                    Phase.EXERCISING -> PhaseExercising
+                    Phase.RESTING -> PhaseResting
                     else -> MaterialTheme.colorScheme.onBackground
                 }
             )
@@ -97,13 +108,19 @@ fun WorkoutScreen(nav: NavController, vm: WorkoutViewModel) {
                 Phase.EXERCISING -> Button(
                     onClick = { vm.endSet() },
                     Modifier.fillMaxWidth().height(72.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = PhaseExercising,
+                        contentColor = Color.White
+                    )
                 ) { Text("Terminar serie", style = MaterialTheme.typography.titleLarge) }
 
                 Phase.RESTING -> Button(
                     onClick = { vm.startNextSet() },
                     Modifier.fillMaxWidth().height(72.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3))
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = PhaseResting,
+                        contentColor = Color.White
+                    )
                 ) { Text("Iniciar serie ${ui.setNumber}", style = MaterialTheme.typography.titleLarge) }
             }
             Spacer(Modifier.height(12.dp))
