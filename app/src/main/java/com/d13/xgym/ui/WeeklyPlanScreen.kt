@@ -35,6 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -102,8 +103,8 @@ fun WeeklyPlanScreen(nav: NavController, prefs: Preferences, vm: WorkoutViewMode
                 Card(
                     Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 6.dp)
-                        .height(72.dp),
+                        .padding(vertical = 4.dp)
+                        .height(56.dp),
                     colors = CardDefaults.cardColors(),
                     border = if (isToday)
                         androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
@@ -126,23 +127,28 @@ fun WeeklyPlanScreen(nav: NavController, prefs: Preferences, vm: WorkoutViewMode
                             modifier = Modifier.fillMaxSize(),
                             shape = RoundedCornerShape(0.dp)
                         ) {
-                            Row(
-                                Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                            Column(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp),
+                                verticalArrangement = Arrangement.Center
                             ) {
                                 Text(
                                     if (isToday) "${dayNames[day]} (hoy)" else dayNames[day],
-                                    style = MaterialTheme.typography.titleMedium,
+                                    style = MaterialTheme.typography.labelMedium,
                                     fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
-                                    color = MaterialTheme.colorScheme.onSurface
+                                    color = if (isToday) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                                Spacer(Modifier.weight(1f))
+                                Spacer(Modifier.height(2.dp))
                                 Text(
                                     slotLabel(code, categories),
-                                    style = MaterialTheme.typography.bodyLarge,
+                                    style = MaterialTheme.typography.bodyMedium,
                                     color = if (code == Preferences.EMPTY)
                                         MaterialTheme.colorScheme.onSurfaceVariant
-                                    else MaterialTheme.colorScheme.onSurface
+                                    else MaterialTheme.colorScheme.onSurface,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                         }

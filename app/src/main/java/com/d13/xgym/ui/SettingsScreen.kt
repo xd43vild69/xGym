@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
@@ -58,32 +59,42 @@ fun SettingsScreen(nav: NavController, prefs: Preferences, vm: WorkoutViewModel)
 
         LazyColumn {
             item {
-                Card(Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
-                    Column(Modifier.padding(16.dp)) {
-                        Text("Duración del descanso (segundos)", style = MaterialTheme.typography.titleMedium)
-                        Spacer(Modifier.height(12.dp))
-                        OutlinedTextField(
-                            value = restText,
-                            onValueChange = { 
-                                val filtered = it.filter { c -> c.isDigit() }
-                                restText = filtered
-                                val sec = filtered.toIntOrNull() ?: 90
-                                if (sec > 0) prefs.restDurationSeconds = sec
-                            },
-                            label = { Text("Segundos") },
-                            keyboardOptions = KeyboardOptions(
-                                keyboardType = KeyboardType.Number,
-                                imeAction = ImeAction.Done
-                            ),
-                            keyboardActions = KeyboardActions(
-                                onDone = { focusManager.clearFocus() }
-                            ),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        Spacer(Modifier.height(8.dp))
+                Card(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+                    Column(Modifier.padding(12.dp)) {
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                "Duración de descanso:",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            OutlinedTextField(
+                                value = restText,
+                                onValueChange = {
+                                    val filtered = it.filter { c -> c.isDigit() }
+                                    restText = filtered
+                                    val sec = filtered.toIntOrNull() ?: 90
+                                    if (sec > 0) prefs.restDurationSeconds = sec
+                                },
+                                label = { Text("s") },
+                                keyboardOptions = KeyboardOptions(
+                                    keyboardType = KeyboardType.Number,
+                                    imeAction = ImeAction.Done
+                                ),
+                                keyboardActions = KeyboardActions(
+                                    onDone = { focusManager.clearFocus() }
+                                ),
+                                modifier = Modifier.width(80.dp),
+                                singleLine = true
+                            )
+                        }
+                        Spacer(Modifier.height(6.dp))
                         Text(
-                            "Al cumplirse este tiempo en descanso, el celular vibrará.",
-                            style = MaterialTheme.typography.bodySmall
+                            "El celular vibrará cuando se cumplan los segundos de descanso.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
