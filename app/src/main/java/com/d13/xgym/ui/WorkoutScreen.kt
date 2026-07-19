@@ -13,14 +13,11 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -196,17 +193,24 @@ fun WorkoutScreen(nav: NavController, vm: WorkoutViewModel) {
                 ) { Text("SIGUIENTE SERIE", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) }
             }
             Spacer(Modifier.height(12.dp))
-            OutlinedButton(
-                onClick = {
-                    nav.navigate("subcategories/${ui.categoryId}") {
-                        popUpTo("workout") { inclusive = true }
-                    }
-                },
-                Modifier.fillMaxWidth()
-            ) {
-                Icon(Icons.AutoMirrored.Filled.List, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
-                Text("Subcategoría")
+            Row(Modifier.fillMaxWidth()) {
+                OutlinedButton(
+                    onClick = {
+                        nav.navigate("categories") {
+                            popUpTo("workout") { inclusive = true }
+                        }
+                    },
+                    modifier = Modifier.weight(1f)
+                ) { Text("Categoría") }
+                Spacer(Modifier.width(12.dp))
+                OutlinedButton(
+                    onClick = {
+                        nav.navigate("subcategories/${ui.categoryId}") {
+                            popUpTo("workout") { inclusive = true }
+                        }
+                    },
+                    modifier = Modifier.weight(1f)
+                ) { Text("Subcategoría") }
             }
             Spacer(Modifier.height(8.dp))
             OutlinedButton(
