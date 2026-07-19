@@ -91,6 +91,16 @@ fun SettingsScreen(nav: NavController, prefs: Preferences, vm: WorkoutViewModel)
 
             item {
                 Spacer(Modifier.height(24.dp))
+                Text("Entrenamiento", style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.height(12.dp))
+                OutlinedButton(
+                    onClick = { nav.navigate("weeklyPlan") },
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text("Plan semanal") }
+            }
+
+            item {
+                Spacer(Modifier.height(24.dp))
                 Text("Historial", style = MaterialTheme.typography.titleMedium)
                 Spacer(Modifier.height(12.dp))
             }

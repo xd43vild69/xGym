@@ -98,5 +98,6 @@ fun AppNav() {
         }
         composable("history") { HistoryScreen(nav, vm) }
         composable("settings") { SettingsScreen(nav, prefs, vm) }
+        composable("weeklyPlan") { WeeklyPlanScreen(nav, prefs, vm) }
     }
 }}
