@@ -45,7 +45,9 @@ data class WorkoutUiState(
     /** Milisegundos transcurridos en total para la sesión, nunca se pausa */
     val sessionElapsedMs: Long = 0,
     /** Duración del descanso en ms (se cachea al iniciar descanso para evitar leer disco) */
-    val restDurationMs: Long = 0L
+    val restDurationMs: Long = 0L,
+    /** Reps sugeridas para la serie recién terminada (serie previa del mismo ejercicio; 10 por defecto) */
+    val suggestedReps: Int = 10
 )
 
 class WorkoutViewModel(app: Application) : AndroidViewModel(app) {
@@ -282,6 +284,10 @@ class WorkoutViewModel(app: Application) : AndroidViewModel(app) {
                     exerciseEndTs = now
                 )
             )
+            // Sugerir las reps de la serie previa del mismo ejercicio en esta sesión.
+            val suggested = workoutDao.setsForSession(sessionId)
+                .filter { it.set.exerciseId == exerciseId && it.set.reps != null }
+                .maxByOrNull { it.set.exerciseEndTs }?.set?.reps ?: 10
             _ui.update {
                 it.copy(
                     phase = Phase.RESTING,
@@ -289,6 +295,7 @@ class WorkoutViewModel(app: Application) : AndroidViewModel(app) {
                     elapsedMs = 0,
                     pendingSetId = setId,
                     setNumber = completed,
+                    suggestedReps = suggested,
                     restDurationMs = prefs.restDurationSeconds * 1000L
                 )
             }

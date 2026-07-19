@@ -10,17 +10,17 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.VerticalDivider
@@ -36,7 +36,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -54,7 +53,6 @@ import com.d13.xgym.viewmodel.WorkoutViewModel
 fun WorkoutScreen(nav: NavController, vm: WorkoutViewModel) {
     val ui by vm.ui.collectAsStateWithLifecycle()
     val categories by vm.catalogDao.categories().collectAsStateWithLifecycle(emptyList())
-    var repsText by remember { mutableStateOf("") }
 
     val currentCategory = categories.firstOrNull { it.id == ui.categoryId }
     val isCardio = currentCategory?.name == "Cardio"
@@ -227,6 +225,7 @@ fun WorkoutScreen(nav: NavController, vm: WorkoutViewModel) {
     }
 
     if (ui.pendingSetId != null && !isCardio) {
+        var reps by remember(ui.pendingSetId) { mutableStateOf(ui.suggestedReps) }
         AlertDialog(
             onDismissRequest = { },
             title = {
@@ -240,18 +239,30 @@ fun WorkoutScreen(nav: NavController, vm: WorkoutViewModel) {
                 }
             },
             text = {
-                OutlinedTextField(
-                    value = repsText,
-                    onValueChange = { repsText = it.filter { c -> c.isDigit() } },
-                    label = { Text("Reps") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                )
+                Row(
+                    Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    FilledTonalIconButton(
+                        onClick = { if (reps > 0) reps-- },
+                        modifier = Modifier.size(72.dp)
+                    ) { Text("−", style = MaterialTheme.typography.headlineMedium) }
+
+                    Text(
+                        "$reps",
+                        style = MaterialTheme.typography.displayMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    FilledTonalIconButton(
+                        onClick = { reps++ },
+                        modifier = Modifier.size(72.dp)
+                    ) { Text("+", style = MaterialTheme.typography.headlineMedium) }
+                }
             },
             confirmButton = {
-                TextButton(onClick = {
-                    vm.setReps(repsText.toIntOrNull() ?: 0)
-                    repsText = ""
-                }) { Text("Guardar") }
+                TextButton(onClick = { vm.setReps(reps) }) { Text("Guardar") }
             }
         )
     }
