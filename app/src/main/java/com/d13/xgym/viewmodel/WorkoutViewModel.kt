@@ -125,6 +125,13 @@ class WorkoutViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** Elimina un ejercicio de la base de datos. */
+    fun deleteExercise(exercise: com.d13.xgym.data.Exercise) {
+        viewModelScope.launch {
+            catalogDao.deleteExercise(exercise)
+        }
+    }
+
     fun startSet() {
         val now = System.currentTimeMillis()
         val isFirstSet = _ui.value.sessionStartTs == null

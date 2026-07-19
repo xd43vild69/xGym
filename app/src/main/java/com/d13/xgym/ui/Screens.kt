@@ -39,6 +39,12 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.rememberSwipeToDismissBoxState
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.graphics.Color
 
 fun formatMs(ms: Long): String {
     val totalSec = ms / 1000
@@ -133,6 +139,7 @@ fun ExerciseScreen(nav: NavController, vm: WorkoutViewModel, categoryId: Long, s
 
     var draggedItemIndex by remember { mutableStateOf<Int?>(null) }
     var dragOffset by remember { mutableStateOf(0f) }
+    var exerciseToDelete by remember { mutableStateOf<com.d13.xgym.data.Exercise?>(null) }
 
     Column(Modifier.fillMaxSize().safeDrawingPadding().padding(24.dp)) {
         Text("Elige ejercicio", style = MaterialTheme.typography.headlineMedium)
@@ -143,11 +150,37 @@ fun ExerciseScreen(nav: NavController, vm: WorkoutViewModel, categoryId: Long, s
                 val isDragged = index == draggedItemIndex
                 val translationY = if (isDragged) dragOffset else 0f
                 
-                Card(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 6.dp)
-                        .zIndex(if (isDragged) 1f else 0f)
+                val dismissState = rememberSwipeToDismissBoxState(
+                    confirmValueChange = {
+                        if (it == SwipeToDismissBoxValue.EndToStart) {
+                            exerciseToDelete = ex
+                        }
+                        false // Snap back, wait for dialog confirmation
+                    }
+                )
+
+                SwipeToDismissBox(
+                    state = dismissState,
+                    enableDismissFromStartToEnd = false,
+                    enableDismissFromEndToStart = true,
+                    backgroundContent = {
+                        val color = if (dismissState.targetValue == SwipeToDismissBoxValue.EndToStart) Color.Red else Color.Transparent
+                        Box(
+                            Modifier
+                                .fillMaxSize()
+                                .padding(vertical = 6.dp)
+                                .background(color),
+                            Alignment.CenterEnd
+                        ) {
+                            Text("🗑️", Modifier.padding(end = 24.dp), style = MaterialTheme.typography.headlineMedium)
+                        }
+                    },
+                    modifier = Modifier.zIndex(if (isDragged) 1f else 0f)
+                ) {
+                    Card(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 6.dp)
                         .graphicsLayer { this.translationY = translationY }
                         .pointerInput(Unit) {
                             detectDragGesturesAfterLongPress(
@@ -198,6 +231,7 @@ fun ExerciseScreen(nav: NavController, vm: WorkoutViewModel, categoryId: Long, s
                         Modifier.fillMaxWidth()
                     ) { Text(ex.name, style = MaterialTheme.typography.titleMedium) }
                 }
+                } // End SwipeToDismissBox
             }
             item {
                 OutlinedButton(onClick = { showAdd = true }, Modifier.fillMaxWidth().padding(top = 12.dp)) {
@@ -230,6 +264,25 @@ fun ExerciseScreen(nav: NavController, vm: WorkoutViewModel, categoryId: Long, s
                 }) { Text("Guardar") }
             },
             dismissButton = { TextButton(onClick = { showAdd = false }) { Text("Cancelar") } }
+        )
+    }
+
+    if (exerciseToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { exerciseToDelete = null },
+            title = { Text("Eliminar ejercicio") },
+            text = { Text("¿Estás seguro de que deseas eliminar '${exerciseToDelete?.name}'?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    val ex = exerciseToDelete!!
+                    exercises = exercises.filter { it.id != ex.id }
+                    vm.deleteExercise(ex)
+                    exerciseToDelete = null
+                }) { Text("Eliminar", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { exerciseToDelete = null }) { Text("Cancelar") }
+            }
         )
     }
 }
