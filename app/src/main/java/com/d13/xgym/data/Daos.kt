@@ -27,6 +27,9 @@ interface CatalogDao {
     @Update
     suspend fun updateExercises(exercises: List<Exercise>)
 
+    @Update
+    suspend fun updateExercise(exercise: Exercise)
+
     @androidx.room.Delete
     suspend fun deleteExercise(exercise: Exercise)
 

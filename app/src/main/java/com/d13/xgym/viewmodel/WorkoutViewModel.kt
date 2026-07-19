@@ -132,6 +132,13 @@ class WorkoutViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** Renombra un ejercicio existente. */
+    fun renameExercise(exercise: com.d13.xgym.data.Exercise, newName: String) {
+        viewModelScope.launch {
+            catalogDao.updateExercise(exercise.copy(name = newName))
+        }
+    }
+
     fun startSet() {
         val now = System.currentTimeMillis()
         val isFirstSet = _ui.value.sessionStartTs == null

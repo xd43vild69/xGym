@@ -140,6 +140,8 @@ fun ExerciseScreen(nav: NavController, vm: WorkoutViewModel, categoryId: Long, s
     var draggedItemIndex by remember { mutableStateOf<Int?>(null) }
     var dragOffset by remember { mutableStateOf(0f) }
     var exerciseToDelete by remember { mutableStateOf<com.d13.xgym.data.Exercise?>(null) }
+    var exerciseToRename by remember { mutableStateOf<com.d13.xgym.data.Exercise?>(null) }
+    var renameText by remember { mutableStateOf("") }
 
     Column(Modifier.fillMaxSize().safeDrawingPadding().padding(24.dp)) {
         Text("Elige ejercicio", style = MaterialTheme.typography.headlineMedium)
@@ -152,8 +154,13 @@ fun ExerciseScreen(nav: NavController, vm: WorkoutViewModel, categoryId: Long, s
                 
                 val dismissState = rememberSwipeToDismissBoxState(
                     confirmValueChange = {
-                        if (it == SwipeToDismissBoxValue.EndToStart) {
-                            exerciseToDelete = ex
+                        when (it) {
+                            SwipeToDismissBoxValue.EndToStart -> exerciseToDelete = ex
+                            SwipeToDismissBoxValue.StartToEnd -> {
+                                exerciseToRename = ex
+                                renameText = ex.name
+                            }
+                            else -> {}
                         }
                         false // Snap back, wait for dialog confirmation
                     }
@@ -161,14 +168,14 @@ fun ExerciseScreen(nav: NavController, vm: WorkoutViewModel, categoryId: Long, s
 
                 SwipeToDismissBox(
                     state = dismissState,
-                    enableDismissFromStartToEnd = false,
+                    enableDismissFromStartToEnd = !isDragged,
                     enableDismissFromEndToStart = !isDragged,
                     backgroundContent = {
-                        // Solo mostrar icono y fondo durante un swipe de eliminación.
+                        // Solo mostrar icono y fondo durante un swipe.
                         // En reposo, currentValue == targetValue == Settled (progress == 1f),
                         // por eso no se puede usar `progress` para ocultarlo.
-                        if (dismissState.targetValue == SwipeToDismissBoxValue.EndToStart) {
-                            Box(
+                        when (dismissState.targetValue) {
+                            SwipeToDismissBoxValue.EndToStart -> Box(
                                 Modifier
                                     .fillMaxSize()
                                     .padding(vertical = 6.dp)
@@ -177,6 +184,16 @@ fun ExerciseScreen(nav: NavController, vm: WorkoutViewModel, categoryId: Long, s
                             ) {
                                 Text("🗑️", Modifier.padding(end = 24.dp), style = MaterialTheme.typography.headlineMedium)
                             }
+                            SwipeToDismissBoxValue.StartToEnd -> Box(
+                                Modifier
+                                    .fillMaxSize()
+                                    .padding(vertical = 6.dp)
+                                    .background(Color(0xFF2196F3)),
+                                Alignment.CenterStart
+                            ) {
+                                Text("✏️", Modifier.padding(start = 24.dp), style = MaterialTheme.typography.headlineMedium)
+                            }
+                            else -> {}
                         }
                     },
                     modifier = Modifier.zIndex(if (isDragged) 1f else 0f)
@@ -293,6 +310,34 @@ fun ExerciseScreen(nav: NavController, vm: WorkoutViewModel, categoryId: Long, s
             },
             dismissButton = {
                 TextButton(onClick = { exerciseToDelete = null }) { Text("Cancelar") }
+            }
+        )
+    }
+
+    if (exerciseToRename != null) {
+        AlertDialog(
+            onDismissRequest = { exerciseToRename = null },
+            title = { Text("Renombrar ejercicio") },
+            text = {
+                OutlinedTextField(
+                    value = renameText,
+                    onValueChange = { renameText = it },
+                    label = { Text("Nombre") }
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val ex = exerciseToRename!!
+                    val name = renameText.trim()
+                    if (name.isNotEmpty() && name != ex.name) {
+                        exercises = exercises.map { if (it.id == ex.id) it.copy(name = name) else it }
+                        vm.renameExercise(ex, name)
+                    }
+                    exerciseToRename = null
+                }) { Text("Guardar") }
+            },
+            dismissButton = {
+                TextButton(onClick = { exerciseToRename = null }) { Text("Cancelar") }
             }
         )
     }
