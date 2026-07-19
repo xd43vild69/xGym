@@ -18,11 +18,14 @@ interface CatalogDao {
     @Query("SELECT * FROM subcategories WHERE categoryId = :categoryId ORDER BY id")
     suspend fun subcategoriesOnce(categoryId: Long): List<Subcategory>
 
-    @Query("SELECT * FROM exercises WHERE subcategoryId = :subcategoryId ORDER BY name")
+    @Query("SELECT * FROM exercises WHERE subcategoryId = :subcategoryId ORDER BY orderIndex ASC, name ASC")
     fun exercises(subcategoryId: Long): Flow<List<Exercise>>
 
     @Insert
     suspend fun insertExercise(exercise: Exercise): Long
+
+    @Update
+    suspend fun updateExercises(exercises: List<Exercise>)
 
     @Insert
     suspend fun insertCategories(items: List<Category>)

@@ -40,7 +40,8 @@ data class Subcategory(
 data class Exercise(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val subcategoryId: Long,
-    val name: String
+    val name: String,
+    val orderIndex: Int = 0
 )
 
 @Entity(

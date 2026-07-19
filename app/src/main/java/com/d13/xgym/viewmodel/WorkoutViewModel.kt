@@ -115,6 +115,16 @@ class WorkoutViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** Reordena la lista de ejercicios actualizando el orderIndex de cada uno. */
+    fun reorderExercises(exercises: List<com.d13.xgym.data.Exercise>) {
+        viewModelScope.launch {
+            val updated = exercises.mapIndexed { index, ex ->
+                ex.copy(orderIndex = index)
+            }
+            catalogDao.updateExercises(updated)
+        }
+    }
+
     fun startSet() {
         val now = System.currentTimeMillis()
         val isFirstSet = _ui.value.sessionStartTs == null

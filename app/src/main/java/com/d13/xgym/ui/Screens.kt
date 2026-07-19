@@ -34,6 +34,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.d13.xgym.viewmodel.WorkoutViewModel
 import kotlinx.coroutines.launch
+import androidx.compose.ui.zIndex
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.lazy.itemsIndexed
 
 fun formatMs(ms: Long): String {
     val totalSec = ms / 1000
@@ -119,26 +124,85 @@ fun SubcategoryScreen(nav: NavController, vm: WorkoutViewModel, categoryId: Long
 
 @Composable
 fun ExerciseScreen(nav: NavController, vm: WorkoutViewModel, categoryId: Long, subcategoryId: Long) {
-    val exercises by vm.catalogDao.exercises(subcategoryId).collectAsStateWithLifecycle(emptyList())
+    val dbExercises by vm.catalogDao.exercises(subcategoryId).collectAsStateWithLifecycle(emptyList())
+    var exercises by remember(dbExercises) { mutableStateOf(dbExercises) }
+    
     var showAdd by remember { mutableStateOf(false) }
     var newName by remember { mutableStateOf("") }
     val scope = androidx.compose.runtime.rememberCoroutineScope()
 
-    ListScaffold("Elige ejercicio") {
-        items(exercises) { ex ->
-            Card(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
-                TextButton(
-                    onClick = {
-                        vm.selectExercise(categoryId, subcategoryId, ex.id, ex.name)
-                        nav.navigate("workout")
-                    },
-                    Modifier.fillMaxWidth()
-                ) { Text(ex.name, style = MaterialTheme.typography.titleMedium) }
+    var draggedItemIndex by remember { mutableStateOf<Int?>(null) }
+    var dragOffset by remember { mutableStateOf(0f) }
+
+    Column(Modifier.fillMaxSize().safeDrawingPadding().padding(24.dp)) {
+        Text("Elige ejercicio", style = MaterialTheme.typography.headlineMedium)
+        Spacer(Modifier.height(16.dp))
+        
+        LazyColumn {
+            itemsIndexed(exercises, key = { _, ex -> ex.id }) { index, ex ->
+                val isDragged = index == draggedItemIndex
+                val translationY = if (isDragged) dragOffset else 0f
+                
+                Card(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 6.dp)
+                        .zIndex(if (isDragged) 1f else 0f)
+                        .graphicsLayer { this.translationY = translationY }
+                        .pointerInput(Unit) {
+                            detectDragGesturesAfterLongPress(
+                                onDragStart = { draggedItemIndex = index },
+                                onDrag = { change, dragAmount ->
+                                    change.consume()
+                                    dragOffset += dragAmount.y
+                                    
+                                    val currentIdx = draggedItemIndex ?: return@detectDragGesturesAfterLongPress
+                                    val itemHeight = 72.dp.toPx() // Approximation height
+                                    
+                                    var newIdx = currentIdx
+                                    if (dragOffset > itemHeight && currentIdx < exercises.size - 1) {
+                                        newIdx = currentIdx + 1
+                                        dragOffset -= itemHeight
+                                    } else if (dragOffset < -itemHeight && currentIdx > 0) {
+                                        newIdx = currentIdx - 1
+                                        dragOffset += itemHeight
+                                    }
+                                    
+                                    if (newIdx != currentIdx) {
+                                        exercises = exercises.toMutableList().apply {
+                                            val item = removeAt(currentIdx)
+                                            add(newIdx, item)
+                                        }
+                                        draggedItemIndex = newIdx
+                                    }
+                                },
+                                onDragEnd = {
+                                    draggedItemIndex = null
+                                    dragOffset = 0f
+                                    vm.reorderExercises(exercises)
+                                },
+                                onDragCancel = {
+                                    draggedItemIndex = null
+                                    dragOffset = 0f
+                                }
+                            )
+                        }
+                ) {
+                    TextButton(
+                        onClick = {
+                            if (draggedItemIndex == null) {
+                                vm.selectExercise(categoryId, subcategoryId, ex.id, ex.name)
+                                nav.navigate("workout")
+                            }
+                        },
+                        Modifier.fillMaxWidth()
+                    ) { Text(ex.name, style = MaterialTheme.typography.titleMedium) }
+                }
             }
-        }
-        item {
-            OutlinedButton(onClick = { showAdd = true }, Modifier.fillMaxWidth().padding(top = 12.dp)) {
-                Text("+ Agregar ejercicio")
+            item {
+                OutlinedButton(onClick = { showAdd = true }, Modifier.fillMaxWidth().padding(top = 12.dp)) {
+                    Text("+ Agregar ejercicio")
+                }
             }
         }
     }
@@ -155,8 +219,9 @@ fun ExerciseScreen(nav: NavController, vm: WorkoutViewModel, categoryId: Long, s
                     val name = newName.trim()
                     if (name.isNotEmpty()) {
                         scope.launch {
+                            val nextOrderIndex = if (exercises.isEmpty()) 0 else (exercises.maxOf { it.orderIndex } + 1)
                             vm.catalogDao.insertExercise(
-                                com.d13.xgym.data.Exercise(subcategoryId = subcategoryId, name = name)
+                                com.d13.xgym.data.Exercise(subcategoryId = subcategoryId, name = name, orderIndex = nextOrderIndex)
                             )
                         }
                     }
