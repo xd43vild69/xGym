@@ -162,17 +162,21 @@ fun ExerciseScreen(nav: NavController, vm: WorkoutViewModel, categoryId: Long, s
                 SwipeToDismissBox(
                     state = dismissState,
                     enableDismissFromStartToEnd = false,
-                    enableDismissFromEndToStart = true,
+                    enableDismissFromEndToStart = !isDragged,
                     backgroundContent = {
-                        val color = if (dismissState.targetValue == SwipeToDismissBoxValue.EndToStart) Color.Red else Color.Transparent
-                        Box(
-                            Modifier
-                                .fillMaxSize()
-                                .padding(vertical = 6.dp)
-                                .background(color),
-                            Alignment.CenterEnd
-                        ) {
-                            Text("🗑️", Modifier.padding(end = 24.dp), style = MaterialTheme.typography.headlineMedium)
+                        // Solo mostrar icono y fondo durante un swipe de eliminación.
+                        // En reposo, currentValue == targetValue == Settled (progress == 1f),
+                        // por eso no se puede usar `progress` para ocultarlo.
+                        if (dismissState.targetValue == SwipeToDismissBoxValue.EndToStart) {
+                            Box(
+                                Modifier
+                                    .fillMaxSize()
+                                    .padding(vertical = 6.dp)
+                                    .background(Color.Red),
+                                Alignment.CenterEnd
+                            ) {
+                                Text("🗑️", Modifier.padding(end = 24.dp), style = MaterialTheme.typography.headlineMedium)
+                            }
                         }
                     },
                     modifier = Modifier.zIndex(if (isDragged) 1f else 0f)
