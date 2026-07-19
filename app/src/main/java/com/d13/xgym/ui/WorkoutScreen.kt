@@ -43,10 +43,18 @@ import com.d13.xgym.viewmodel.WorkoutViewModel
 @Composable
 fun WorkoutScreen(nav: NavController, vm: WorkoutViewModel) {
     val ui by vm.ui.collectAsStateWithLifecycle()
+    val categories by vm.catalogDao.categories().collectAsStateWithLifecycle(emptyList())
     var repsText by remember { mutableStateOf("") }
-    
-    // Al salir por completo (sin navegar), limpiar el flag de sesión activa si fuera necesario, 
-    // pero ahora el timer es continuo, así que no hacemos nada especial con el ciclo de vida.
+
+    val currentCategory = categories.firstOrNull { it.id == ui.categoryId }
+    val isCardio = currentCategory?.name == "Cardio"
+
+    // En Cardio, auto-setear reps = 0 cuando hay un pending set (sin diálogo)
+    LaunchedEffect(ui.pendingSetId, isCardio) {
+        if (isCardio && ui.pendingSetId != null) {
+            vm.setReps(0)
+        }
+    }
 
     Column(
         Modifier.fillMaxSize().safeDrawingPadding().padding(24.dp),
@@ -139,7 +147,7 @@ fun WorkoutScreen(nav: NavController, vm: WorkoutViewModel) {
         }
     }
 
-    if (ui.pendingSetId != null) {
+    if (ui.pendingSetId != null && !isCardio) {
         AlertDialog(
             onDismissRequest = { },
             title = { Text("Repeticiones de la serie ${ui.setNumber - 1}") },

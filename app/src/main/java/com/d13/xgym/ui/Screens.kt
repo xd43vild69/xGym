@@ -120,21 +120,28 @@ fun HomeScreen(nav: NavController, vm: WorkoutViewModel) {
 fun CategoryScreen(nav: NavController, vm: WorkoutViewModel, prefs: com.d13.xgym.data.Preferences) {
     val categories by vm.catalogDao.categories().collectAsStateWithLifecycle(emptyList())
 
-    // Categorías planeadas para hoy: si el día tiene alguna, el resto se atenúa (pero sigue clicable).
+    // Categorías planeadas para hoy: si el día tiene alguna, esas van primero (alfabético)
+    // y el resto se atenúa (pero sigue clicable).
     val todayIndex = java.time.LocalDate.now().dayOfWeek.value - 1
     val todaySet = remember { prefs.weeklyPlan[todayIndex].categoryIds.toSet() }
     val hasPlan = todaySet.isNotEmpty()
+
+    val orderedCategories = if (hasPlan) {
+        val planned = categories.filter { it.id in todaySet }.sortedBy { it.name }
+        val rest = categories.filter { it.id !in todaySet }
+        planned + rest
+    } else categories
 
     Column(Modifier.fillMaxSize().safeDrawingPadding().padding(24.dp)) {
         Text("Elige categoría", style = MaterialTheme.typography.headlineMedium)
         Spacer(Modifier.height(16.dp))
 
         DraggableList(
-            items = categories,
+            items = orderedCategories,
             key = { it.id },
             onReorder = { vm.reorderCategories(it) }
         ) { cat, dragModifier, isDragged ->
-            val enabled = !hasPlan || cat.id in todaySet
+            val inPlan = cat.id in todaySet
             Card(
                 Modifier
                     .fillMaxWidth()
@@ -149,8 +156,11 @@ fun CategoryScreen(nav: NavController, vm: WorkoutViewModel, prefs: com.d13.xgym
                     Text(
                         cat.name,
                         style = MaterialTheme.typography.titleMedium,
-                        color = if (enabled) MaterialTheme.colorScheme.onSurface
-                        else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                        color = when {
+                            !hasPlan -> MaterialTheme.colorScheme.onSurface
+                            inPlan -> MaterialTheme.colorScheme.primary
+                            else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                        }
                     )
                 }
             }
