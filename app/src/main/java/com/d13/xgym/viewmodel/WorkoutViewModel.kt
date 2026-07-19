@@ -1,7 +1,9 @@
 package com.d13.xgym.viewmodel
 
 import android.app.Application
-import android.os.Vibrator
+import android.content.Intent
+import androidx.core.content.ContextCompat
+import com.d13.xgym.services.WorkoutService
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.d13.xgym.data.AppDatabase
@@ -49,7 +51,6 @@ class WorkoutViewModel(app: Application) : AndroidViewModel(app) {
     private val workoutDao = db.workoutDao()
     val catalogDao = db.catalogDao()
     private val prefs = Preferences(app)
-    private val vibrator = app.getSystemService(Vibrator::class.java)
 
     private val _ui = MutableStateFlow(WorkoutUiState())
     val ui: StateFlow<WorkoutUiState> = _ui.asStateFlow()
@@ -79,9 +80,7 @@ class WorkoutViewModel(app: Application) : AndroidViewModel(app) {
                     // Dispara una sola vez por descanso: restAlarmFired queda en true
                     // hasta que se sale de la fase RESTING.
                     val fireNow = it.phase == Phase.RESTING && newElapsed >= restDurationMs && !it.restAlarmFired
-                    if (fireNow) {
-                        vibrator?.vibrate(500)
-                    }
+                    
                     // Cronómetro de sesión total continuo e ininterrumpido
                     val sessionTotalMs = if (it.sessionStartTs != null) {
                         System.currentTimeMillis() - it.sessionStartTs
@@ -98,6 +97,14 @@ class WorkoutViewModel(app: Application) : AndroidViewModel(app) {
                 delay(200)
             }
         }
+    }
+
+    private fun sendServiceAction(action: String, extras: (Intent.() -> Unit)? = null) {
+        val intent = Intent(getApplication<Application>(), WorkoutService::class.java).apply {
+            this.action = action
+            extras?.invoke(this)
+        }
+        ContextCompat.startForegroundService(getApplication<Application>(), intent)
     }
 
     /** Crea la sesión (si no existe) y fija el ejercicio activo. */
@@ -185,6 +192,11 @@ class WorkoutViewModel(app: Application) : AndroidViewModel(app) {
         }
         _ui.update { it ->
             val newSessionStartTs = it.sessionStartTs ?: now
+            if (it.sessionStartTs == null) {
+                sendServiceAction(WorkoutService.ACTION_START_WORKOUT) {
+                    putExtra(WorkoutService.EXTRA_SESSION_START_TS, now)
+                }
+            }
             it.copy(
                 phase = Phase.EXERCISING,
                 phaseStartTs = now,
@@ -220,6 +232,10 @@ class WorkoutViewModel(app: Application) : AndroidViewModel(app) {
                     setNumber = it.setNumber + 1
                 )
             }
+            sendServiceAction(WorkoutService.ACTION_START_REST) {
+                putExtra(WorkoutService.EXTRA_REST_START_TS, now)
+                putExtra(WorkoutService.EXTRA_REST_DURATION_MS, prefs.restDurationSeconds * 1000L)
+            }
         }
     }
 
@@ -241,7 +257,17 @@ class WorkoutViewModel(app: Application) : AndroidViewModel(app) {
         val now = System.currentTimeMillis()
         viewModelScope.launch {
             closeOpenRest(now)
+            sendServiceAction(WorkoutService.ACTION_STOP_REST)
             _ui.update { it.copy(phase = Phase.EXERCISING, phaseStartTs = now, elapsedMs = 0) }
+        }
+    }
+
+    fun cancelRest() {
+        val now = System.currentTimeMillis()
+        viewModelScope.launch {
+            closeOpenRest(now)
+            sendServiceAction(WorkoutService.ACTION_STOP_REST)
+            _ui.update { it.copy(phase = Phase.IDLE, phaseStartTs = now, elapsedMs = 0) }
         }
     }
 
@@ -281,6 +307,7 @@ class WorkoutViewModel(app: Application) : AndroidViewModel(app) {
                 )
             }
             closeOpenRest(now)
+            sendServiceAction(WorkoutService.ACTION_STOP_WORKOUT)
             workoutDao.session(sessionId)?.let {
                 workoutDao.updateSession(it.copy(endTs = now, durationMs = s.sessionElapsedMs))
             }
@@ -329,6 +356,7 @@ class WorkoutViewModel(app: Application) : AndroidViewModel(app) {
         val now = System.currentTimeMillis()
         viewModelScope.launch {
             closeOpenRest(now)
+            sendServiceAction(WorkoutService.ACTION_STOP_WORKOUT)
             workoutDao.session(sessionId)?.let { session ->
                 workoutDao.updateSession(session.copy(endTs = now, durationMs = s.sessionElapsedMs))
             }
@@ -346,6 +374,7 @@ class WorkoutViewModel(app: Application) : AndroidViewModel(app) {
             // Terminar sesión previa formalmente
             if (sessionId != null) {
                 closeOpenRest(now)
+                sendServiceAction(WorkoutService.ACTION_STOP_WORKOUT)
                 workoutDao.session(sessionId)?.let { session ->
                     // Si la sesión anterior no duró nada o no tenía series, se podría borrar. 
                     // Pero por ahora solo la terminamos.
