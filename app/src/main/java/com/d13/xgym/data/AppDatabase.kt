@@ -12,7 +12,7 @@ import kotlinx.coroutines.launch
 
 @Database(
     entities = [Category::class, Subcategory::class, Exercise::class, Session::class, SetRecord::class],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -47,12 +47,21 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Limpia categorías y subcategorías para replantear con nuevas
+                database.execSQL("DELETE FROM exercises")
+                database.execSQL("DELETE FROM subcategories")
+                database.execSQL("DELETE FROM categories")
+            }
+        }
+
         fun get(context: Context): AppDatabase =
             instance ?: synchronized(this) {
                 instance ?: Room.databaseBuilder(
                     context.applicationContext, AppDatabase::class.java, "xgym.db"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                     .build().also {
                     instance = it
                     CoroutineScope(Dispatchers.IO).launch { seedIfEmpty(it) }
@@ -64,42 +73,66 @@ abstract class AppDatabase : RoomDatabase() {
             if (dao.categoryCount() > 0) return
             dao.insertCategories(
                 listOf(
-                    Category(1, "Pecho / Hombro / Tríceps"),
-                    Category(2, "Espalda / Bíceps"),
-                    Category(3, "Pierna"),
-                    Category(4, "Cardio")
+                    Category(1, "Pecho"),
+                    Category(2, "Hombro"),
+                    Category(3, "Tríceps"),
+                    Category(4, "Espalda"),
+                    Category(5, "Bíceps"),
+                    Category(6, "Pierna"),
+                    Category(7, "Cardio"),
+                    Category(8, "Core")
                 )
             )
             dao.insertSubcategories(
                 listOf(
-                    Subcategory(11, 1, "Pecho"),
-                    Subcategory(12, 1, "Hombro"),
-                    Subcategory(13, 1, "Tríceps"),
-                    Subcategory(21, 2, "Espalda"),
-                    Subcategory(22, 2, "Bíceps"),
-                    Subcategory(31, 3, "Pierna"),
-                    Subcategory(41, 4, "Cardio")
+                    Subcategory(1, 1, "Pecho"),
+                    Subcategory(2, 2, "Hombro"),
+                    Subcategory(3, 3, "Tríceps"),
+                    Subcategory(4, 4, "Espalda"),
+                    Subcategory(5, 5, "Bíceps"),
+                    Subcategory(6, 6, "Pierna"),
+                    Subcategory(7, 7, "Cardio"),
+                    Subcategory(8, 8, "Core")
                 )
             )
             dao.insertExercises(
                 listOf(
-                    Exercise(subcategoryId = 11, name = "Press banca"),
-                    Exercise(subcategoryId = 11, name = "Press inclinado"),
-                    Exercise(subcategoryId = 11, name = "Aperturas"),
-                    Exercise(subcategoryId = 12, name = "Press militar"),
-                    Exercise(subcategoryId = 12, name = "Elevaciones laterales"),
-                    Exercise(subcategoryId = 13, name = "Extensión en polea"),
-                    Exercise(subcategoryId = 13, name = "Fondos"),
-                    Exercise(subcategoryId = 21, name = "Jalón al pecho"),
-                    Exercise(subcategoryId = 21, name = "Remo con barra"),
-                    Exercise(subcategoryId = 22, name = "Curl con barra"),
-                    Exercise(subcategoryId = 22, name = "Curl martillo"),
-                    Exercise(subcategoryId = 31, name = "Sentadilla"),
-                    Exercise(subcategoryId = 31, name = "Prensa"),
-                    Exercise(subcategoryId = 31, name = "Peso muerto"),
-                    Exercise(subcategoryId = 41, name = "Caminadora"),
-                    Exercise(subcategoryId = 41, name = "Elíptica"),
-                    Exercise(subcategoryId = 41, name = "Bicicleta")
+                    // Pecho
+                    Exercise(subcategoryId = 1, name = "Press banca"),
+                    Exercise(subcategoryId = 1, name = "Press inclinado"),
+                    Exercise(subcategoryId = 1, name = "Aperturas"),
+                    // Hombro
+                    Exercise(subcategoryId = 2, name = "Press militar"),
+                    Exercise(subcategoryId = 2, name = "Elevaciones laterales"),
+                    Exercise(subcategoryId = 2, name = "Pájaros"),
+                    // Tríceps
+                    Exercise(subcategoryId = 3, name = "Extensión en polea"),
+                    Exercise(subcategoryId = 3, name = "Fondos"),
+                    Exercise(subcategoryId = 3, name = "Extensión con mancuerna"),
+                    // Espalda
+                    Exercise(subcategoryId = 4, name = "Jalón al pecho"),
+                    Exercise(subcategoryId = 4, name = "Remo con barra"),
+                    Exercise(subcategoryId = 4, name = "Remo máquina"),
+                    // Bíceps
+                    Exercise(subcategoryId = 5, name = "Curl con barra"),
+                    Exercise(subcategoryId = 5, name = "Curl martillo"),
+                    Exercise(subcategoryId = 5, name = "Curl máquina"),
+                    // Pierna
+                    Exercise(subcategoryId = 6, name = "Sentadilla"),
+                    Exercise(subcategoryId = 6, name = "Prensa"),
+                    Exercise(subcategoryId = 6, name = "Peso muerto"),
+                    Exercise(subcategoryId = 6, name = "Extensión de pierna"),
+                    Exercise(subcategoryId = 6, name = "Curl femoral"),
+                    // Cardio
+                    Exercise(subcategoryId = 7, name = "Caminadora"),
+                    Exercise(subcategoryId = 7, name = "Elíptica"),
+                    Exercise(subcategoryId = 7, name = "Bicicleta"),
+                    Exercise(subcategoryId = 7, name = "Remo máquina"),
+                    // Core
+                    Exercise(subcategoryId = 8, name = "Abdominales"),
+                    Exercise(subcategoryId = 8, name = "Planchas"),
+                    Exercise(subcategoryId = 8, name = "Crunch máquina"),
+                    Exercise(subcategoryId = 8, name = "Levantamiento de piernas")
                 )
             )
         }
