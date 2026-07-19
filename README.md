@@ -1,33 +1,33 @@
 # xGym
 
-App Android nativa (Kotlin + Jetpack Compose + Room) para controlar tiempos de ejercicio y descanso en el gimnasio.
+Native Android app (Kotlin + Jetpack Compose + Room) to track exercise and rest times at the gym.
 
-## Flujo
-1. **Inicio** → botón **Entrenar**. En la parte inferior hay una **barra de navegación** (Home · Historial · Ajustes) visible en todas las pantallas.
-2. **Categoría**: 8 categorías independientes — Pecho, Hombro, Tríceps, Espalda, Bíceps, Pierna, Cardio, Core. Si hay un **plan** para el día de hoy, esas categorías salen primero (ordenadas alfabéticamente y en azul) y el resto se atenúa en gris, pero siguen siendo seleccionables.
-3. **Ejercicio**: lista sembrada por categoría + botón para agregar nuevos. Deslizar para renombrar/eliminar; mantener presionado para reordenar.
-4. **Entrenamiento** (pantalla principal): barra superior con **Tiempo total** y **Ejercicio**; cronómetro grande de la fase actual; tarjeta con el número de **serie completadas**; botón principal por fase:
-   - **INICIAR** → empieza el ejercicio (fase EJERCICIO).
-   - **TERMINAR** → cierra la serie (aquí avanza el contador de serie), pide reps y empieza el descanso. En **Cardio** no se piden reps.
-   - **SIGUIENTE SERIE** → arranca la próxima serie tras el descanso.
-   - Botones **Categoría** / **Subcategoría** para moverse, y **Finalizar sesión**.
-5. **Resumen / Historial**: series con duración, reps y descanso por ejercicio; sesiones por fecha.
+## Flow
+1. **Home** → **Train** button. There is a **navigation bar** at the bottom (Home · History · Settings) visible on all screens.
+2. **Category**: 8 independent categories — Chest, Shoulder, Triceps, Back, Biceps, Leg, Cardio, Core. If there is a **plan** for today, those categories appear first (sorted alphabetically and in blue), and the rest are grayed out but remain selectable.
+3. **Exercise**: category-seeded list + button to add new ones. Swipe to rename/delete; long press to reorder.
+4. **Workout** (main screen): top bar with **Total time** and **Exercise**; large stopwatch for the current phase; card showing the number of **completed sets**; main button per phase:
+   - **START** → starts the exercise (EXERCISE phase).
+   - **FINISH** → finishes the set (increments the set counter), prompts for reps, and starts the rest. Reps are not prompted in **Cardio**.
+   - **NEXT SET** → starts the next set after the rest.
+   - **Category** / **Subcategory** buttons to navigate, and **Finish session**.
+5. **Summary / History**: sets with duration, reps, and rest per exercise; sessions by date.
 
-## Plan semanal
-En **Ajustes → Plan semanal** se configura qué se entrena cada día (L–D). Cada día admite **varias categorías** o **Descanso** (exclusivo); se puede vaciar un día o limpiar la semana. El plan persiste localmente y guía el orden/resaltado en la pantalla "Elige categoría".
+## Weekly Plan
+In **Settings → Weekly Plan**, you can configure what is trained each day (Mon–Sun). Each day accepts **multiple categories** or **Rest** (exclusive); you can clear a single day or clear the entire week. The plan persists locally and guides the ordering/highlighting on the "Choose category" screen.
 
-## Ajustes
-- **Duración de descanso** (segundos): al cumplirse, el celular vibra.
-- **Plan semanal**.
-- **Borrar historial de hoy** / **Limpiar todo el historial**.
+## Settings
+- **Rest duration** (seconds): once completed, the phone vibrates.
+- **Weekly plan**.
+- **Clear today's history** / **Clear all history**.
 
-Los datos se guardan localmente en SQLite (Room) y las preferencias en SharedPreferences, sin internet ni cuenta.
+Data is saved locally in SQLite (Room) and preferences in SharedPreferences, with no internet or account required.
 
-## Compilar
+## Build
 ```bash
 export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
-./gradlew assembleDebug          # APK en app/build/outputs/apk/debug/
-./gradlew installDebug           # instala en el dispositivo/emulador conectado
+./gradlew assembleDebug          # APK in app/build/outputs/apk/debug/
+./gradlew installDebug           # installs on the connected device/emulator
 ./gradlew testDebugUnitTest      # tests
 ```
-O abrir la carpeta en Android Studio y ejecutar.
+Or open the folder in Android Studio and run.
