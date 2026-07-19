@@ -87,10 +87,12 @@ class WorkoutViewModel(app: Application) : AndroidViewModel(app) {
                 } else {
                     val sets = workoutDao.setsForSession(activeSession.id)
                     val lastSet = sets.lastOrNull()
+                    val loc = lastSet?.let { catalogDao.exerciseLocation(it.set.exerciseId) }
                     _ui.update {
                         it.copy(
                             sessionId = activeSession.id,
-                            categoryId = activeSession.categoryId,
+                            categoryId = loc?.categoryId,
+                            subcategoryId = loc?.subcategoryId,
                             sessionStartTs = activeSession.startTs,
                             phase = Phase.IDLE,
                             exerciseId = lastSet?.set?.exerciseId,
@@ -172,7 +174,6 @@ class WorkoutViewModel(app: Application) : AndroidViewModel(app) {
             if (sessionId == null) {
                 sessionId = workoutDao.insertSession(
                     Session(
-                        categoryId = categoryId,
                         date = LocalDate.now().toString(),
                         startTs = System.currentTimeMillis()
                     )
@@ -459,7 +460,6 @@ class WorkoutViewModel(app: Application) : AndroidViewModel(app) {
             // Iniciar nueva sesión
             val newSessionId = workoutDao.insertSession(
                 Session(
-                    categoryId = categoryId,
                     date = LocalDate.now().toString(),
                     startTs = now
                 )

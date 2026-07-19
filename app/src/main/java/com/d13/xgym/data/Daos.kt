@@ -50,11 +50,22 @@ interface CatalogDao {
 
     @Query("SELECT COUNT(*) FROM categories")
     suspend fun categoryCount(): Int
+
+    @Query(
+        """SELECT e.subcategoryId AS subcategoryId, sc.categoryId AS categoryId
+           FROM exercises e JOIN subcategories sc ON sc.id = e.subcategoryId
+           WHERE e.id = :exerciseId"""
+    )
+    suspend fun exerciseLocation(exerciseId: Long): ExerciseLoc?
 }
+
+/** Ubicación de un ejercicio en el catálogo (para recuperar el estado del entrenamiento). */
+data class ExerciseLoc(val subcategoryId: Long, val categoryId: Long)
 
 data class SessionWithCategory(
     @Embedded val session: Session,
-    val categoryName: String,
+    /** Categorías involucradas en la sesión, derivadas de las series (separadas por ","). Null si no hay series. */
+    val categoryNames: String?,
     val setCount: Int
 )
 
@@ -81,17 +92,29 @@ interface WorkoutDao {
     suspend fun updateSet(set: SetRecord)
 
     @Query(
-        """SELECT s.*, c.name AS categoryName,
-           (SELECT COUNT(*) FROM set_records r WHERE r.sessionId = s.id) AS setCount
-           FROM sessions s JOIN categories c ON c.id = s.categoryId
+        """SELECT s.*,
+           (SELECT COUNT(*) FROM set_records r WHERE r.sessionId = s.id) AS setCount,
+           (SELECT GROUP_CONCAT(DISTINCT c.name)
+              FROM set_records r
+              JOIN exercises e ON e.id = r.exerciseId
+              JOIN subcategories sc ON sc.id = e.subcategoryId
+              JOIN categories c ON c.id = sc.categoryId
+              WHERE r.sessionId = s.id) AS categoryNames
+           FROM sessions s
            ORDER BY s.startTs DESC"""
     )
     fun sessionsWithCategory(): Flow<List<SessionWithCategory>>
 
     @Query(
-        """SELECT s.*, c.name AS categoryName, 
-           (SELECT COUNT(*) FROM set_records r WHERE r.sessionId = s.id) AS setCount
-           FROM sessions s JOIN categories c ON c.id = s.categoryId
+        """SELECT s.*,
+           (SELECT COUNT(*) FROM set_records r WHERE r.sessionId = s.id) AS setCount,
+           (SELECT GROUP_CONCAT(DISTINCT c.name)
+              FROM set_records r
+              JOIN exercises e ON e.id = r.exerciseId
+              JOIN subcategories sc ON sc.id = e.subcategoryId
+              JOIN categories c ON c.id = sc.categoryId
+              WHERE r.sessionId = s.id) AS categoryNames
+           FROM sessions s
            WHERE s.id = :id"""
     )
     suspend fun sessionWithCategory(id: Long): SessionWithCategory?

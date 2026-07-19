@@ -46,18 +46,9 @@ data class Exercise(
     val orderIndex: Int = 0
 )
 
-@Entity(
-    tableName = "sessions",
-    foreignKeys = [ForeignKey(
-        entity = Category::class,
-        parentColumns = ["id"],
-        childColumns = ["categoryId"]
-    )],
-    indices = [Index("categoryId")]
-)
+@Entity(tableName = "sessions")
 data class Session(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val categoryId: Long,
     /** Fecha local yyyy-MM-dd de la sesión */
     val date: String,
     val startTs: Long,

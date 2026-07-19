@@ -56,7 +56,10 @@ fun SummaryScreen(nav: NavController, sessionId: Long) {
             sessionInfo?.let { info ->
                 Card(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
                     Column(Modifier.padding(16.dp)) {
-                        Text(info.categoryName, style = MaterialTheme.typography.headlineSmall)
+                        Text(
+                            info.categoryNames?.replace(",", " · ") ?: "Entrenamiento",
+                            style = MaterialTheme.typography.headlineSmall
+                        )
                         Spacer(Modifier.height(8.dp))
                         Text("Fecha: ${info.session.date}", style = MaterialTheme.typography.bodyMedium)
                         val totalTime = info.session.durationMs?.let { formatHMS(it) }
@@ -136,8 +139,10 @@ fun HistoryScreen(nav: NavController, vm: WorkoutViewModel) {
             ) {
                 Card(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
                     Column(Modifier.padding(16.dp)) {
-                        Text("${s.session.date} — ${s.categoryName}",
-                            style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            "${s.session.date} — ${s.categoryNames?.replace(",", " · ") ?: "Entrenamiento"}",
+                            style = MaterialTheme.typography.titleMedium
+                        )
                         val totalTime = s.session.durationMs?.let { formatHMS(it) }
                             ?: s.session.endTs?.minus(s.session.startTs)?.let { formatHMS(it) }
                             ?: "en curso"

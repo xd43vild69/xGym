@@ -12,7 +12,7 @@ import kotlinx.coroutines.launch
 
 @Database(
     entities = [Category::class, Subcategory::class, Exercise::class, Session::class, SetRecord::class],
-    version = 6,
+    version = 7,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -56,12 +56,29 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Elimina Session.categoryId: las categorías se derivan de las series.
+                // Se recrea la tabla preservando los datos existentes.
+                database.execSQL(
+                    "CREATE TABLE sessions_new (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "date TEXT NOT NULL, startTs INTEGER NOT NULL, endTs INTEGER, durationMs INTEGER)"
+                )
+                database.execSQL(
+                    "INSERT INTO sessions_new (id, date, startTs, endTs, durationMs) " +
+                        "SELECT id, date, startTs, endTs, durationMs FROM sessions"
+                )
+                database.execSQL("DROP TABLE sessions")
+                database.execSQL("ALTER TABLE sessions_new RENAME TO sessions")
+            }
+        }
+
         fun get(context: Context): AppDatabase =
             instance ?: synchronized(this) {
                 instance ?: Room.databaseBuilder(
                     context.applicationContext, AppDatabase::class.java, "xgym.db"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
                     .build().also {
                     instance = it
                     CoroutineScope(Dispatchers.IO).launch { seedIfEmpty(it) }
