@@ -124,24 +124,14 @@ fun WorkoutScreen(nav: NavController, vm: WorkoutViewModel) {
                 ) { Text("Iniciar serie ${ui.setNumber}", style = MaterialTheme.typography.titleLarge) }
             }
             Spacer(Modifier.height(12.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedButton(
-                    onClick = {
-                        nav.navigate("exercises/${ui.categoryId}/${ui.subcategoryId}") {
-                            popUpTo("workout") { inclusive = true }
-                        }
-                    },
-                    Modifier.weight(1f)
-                ) { Text("Cambiar ejercicio") }
-                OutlinedButton(
-                    onClick = {
-                        nav.navigate("subcategories/${ui.categoryId}") {
-                            popUpTo("workout") { inclusive = true }
-                        }
-                    },
-                    Modifier.weight(1f)
-                ) { Text("Subcategoría") }
-            }
+            OutlinedButton(
+                onClick = {
+                    nav.navigate("subcategories/${ui.categoryId}") {
+                        popUpTo("workout") { inclusive = true }
+                    }
+                },
+                Modifier.fillMaxWidth()
+            ) { Text("Subcategoría", textAlign = androidx.compose.ui.text.style.TextAlign.Center) }
             Spacer(Modifier.height(12.dp))
             OutlinedButton(
                 onClick = {

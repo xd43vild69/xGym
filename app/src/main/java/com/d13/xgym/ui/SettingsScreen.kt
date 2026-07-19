@@ -26,6 +26,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -37,10 +42,14 @@ fun SettingsScreen(nav: NavController, prefs: Preferences, vm: WorkoutViewModel)
     var restText by remember { mutableStateOf(prefs.restDurationSeconds.toString()) }
     var showClearAllDialog by remember { mutableStateOf(false) }
     var showClearTodayDialog by remember { mutableStateOf(false) }
+    val focusManager = LocalFocusManager.current
 
     Column(
         Modifier
             .fillMaxSize()
+            .pointerInput(Unit) {
+                detectTapGestures(onTap = { focusManager.clearFocus() })
+            }
             .safeDrawingPadding()
             .padding(24.dp)
     ) {
@@ -62,7 +71,13 @@ fun SettingsScreen(nav: NavController, prefs: Preferences, vm: WorkoutViewModel)
                                 if (sec > 0) prefs.restDurationSeconds = sec
                             },
                             label = { Text("Segundos") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Number,
+                                imeAction = ImeAction.Done
+                            ),
+                            keyboardActions = KeyboardActions(
+                                onDone = { focusManager.clearFocus() }
+                            ),
                             modifier = Modifier.fillMaxWidth()
                         )
                         Spacer(Modifier.height(8.dp))

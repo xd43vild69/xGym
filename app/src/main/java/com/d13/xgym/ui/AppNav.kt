@@ -12,6 +12,23 @@ import com.d13.xgym.viewmodel.WorkoutViewModel
 import androidx.compose.runtime.remember
 import android.content.Context
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.navigation.compose.currentBackStackEntryAsState
 
 @Composable
 fun AppNav() {
@@ -20,8 +37,37 @@ fun AppNav() {
     val context = LocalContext.current
     val prefs = remember { Preferences(context) }
 
-    NavHost(navController = nav, startDestination = "home") {
-        composable("home") { HomeScreen(nav) }
+    val uiState by vm.ui.collectAsState()
+    val navBackStackEntry by nav.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+
+    Column(Modifier.fillMaxSize()) {
+        if (uiState.sessionStartTs != null && currentRoute != "workout") {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.primaryContainer)
+                    .statusBarsPadding()
+                    .clickable { nav.navigate("workout") }
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Entrenamiento activo",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+                Spacer(Modifier.weight(1f))
+                Text(
+                    text = formatHMS(uiState.sessionElapsedPausedMs),
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            }
+        }
+
+        NavHost(navController = nav, startDestination = "home", modifier = Modifier.weight(1f)) {
+            composable("home") { HomeScreen(nav) }
         composable("categories") { CategoryScreen(nav, vm) }
         composable(
             "subcategories/{categoryId}",
