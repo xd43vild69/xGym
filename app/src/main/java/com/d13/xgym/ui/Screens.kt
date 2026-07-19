@@ -42,21 +42,38 @@ fun formatMs(ms: Long): String {
     return "%d:%02d".format(min, sec)
 }
 
+fun formatHMS(ms: Long): String {
+    val totalSec = ms / 1000
+    val h = totalSec / 3600
+    val m = (totalSec % 3600) / 60
+    val s = totalSec % 60
+    return "%d:%02d:%02d".format(h, m, s)
+}
+
 @Composable
 fun HomeScreen(nav: NavController) {
     Column(
         Modifier.fillMaxSize().safeDrawingPadding().padding(24.dp),
-        verticalArrangement = Arrangement.Center,
+        verticalArrangement = Arrangement.SpaceBetween,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("xGym", style = MaterialTheme.typography.displayMedium)
-        Spacer(Modifier.height(48.dp))
-        Button(onClick = { nav.navigate("categories") }, Modifier.fillMaxWidth()) {
-            Text("Iniciar entrenamiento", style = MaterialTheme.typography.titleLarge)
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text("xGym", style = MaterialTheme.typography.displayMedium)
+            Spacer(Modifier.height(48.dp))
+            Button(onClick = { nav.navigate("categories") }, Modifier.fillMaxWidth()) {
+                Text("Iniciar entrenamiento", style = MaterialTheme.typography.titleLarge)
+            }
+            Spacer(Modifier.height(16.dp))
+            OutlinedButton(onClick = { nav.navigate("history") }, Modifier.fillMaxWidth()) {
+                Text("Historial")
+            }
         }
-        Spacer(Modifier.height(16.dp))
-        OutlinedButton(onClick = { nav.navigate("history") }, Modifier.fillMaxWidth()) {
-            Text("Historial")
+        OutlinedButton(onClick = { nav.navigate("settings") }, Modifier.fillMaxWidth()) {
+            Text("⚙ Ajustes")
         }
     }
 }

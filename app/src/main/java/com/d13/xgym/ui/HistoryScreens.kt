@@ -40,18 +40,18 @@ fun SummaryScreen(nav: NavController, sessionId: Long) {
                 Card(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
                     Column(Modifier.padding(16.dp)) {
                         Text(name, style = MaterialTheme.typography.titleMedium)
-                        exSets.forEach { s ->
-                            val workMs = s.set.exerciseEndTs - s.set.exerciseStartTs
-                            val restMs = s.set.restEndTs?.minus(s.set.exerciseEndTs)
-                            Row(Modifier.fillMaxWidth().padding(top = 4.dp)) {
-                                Text(
-                                    "Serie ${s.set.setNumber}: ${formatMs(workMs)}" +
-                                        (s.set.reps?.let { " · $it reps" } ?: "") +
-                                        (restMs?.let { " · descanso ${formatMs(it)}" } ?: ""),
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
-                            }
+                    exSets.forEach { s ->
+                        val workMs = s.set.exerciseEndTs - s.set.exerciseStartTs
+                        val restMs = s.set.restEndTs?.minus(s.set.exerciseEndTs)
+                        Row(Modifier.fillMaxWidth().padding(top = 4.dp)) {
+                            Text(
+                                "Serie ${s.set.setNumber}: ${formatMs(workMs)}" +
+                                    (s.set.reps?.let { " · $it reps" } ?: "") +
+                                    (restMs?.let { " · descanso ${formatMs(it)}" } ?: ""),
+                                style = MaterialTheme.typography.bodyMedium
+                            )
                         }
+                    }
                     }
                 }
             }
@@ -76,10 +76,11 @@ fun HistoryScreen(nav: NavController) {
                 Column(Modifier.padding(16.dp)) {
                     Text("${s.session.date} — ${s.categoryName}",
                         style = MaterialTheme.typography.titleMedium)
-                    val duration = s.session.endTs?.minus(s.session.startTs)
+                    val totalTime = s.session.durationMs?.let { formatHMS(it) }
+                        ?: s.session.endTs?.minus(s.session.startTs)?.let { formatHMS(it) }
+                        ?: "en curso"
                     Text(
-                        "${s.setCount} series" +
-                            (duration?.let { " · duración ${formatMs(it)}" } ?: " · en curso"),
+                        "${s.setCount} series · $totalTime",
                         style = MaterialTheme.typography.bodyMedium
                     )
                     Spacer(Modifier.height(4.dp))

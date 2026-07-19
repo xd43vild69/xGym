@@ -19,6 +19,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -28,6 +30,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.d13.xgym.viewmodel.Phase
@@ -37,6 +42,21 @@ import com.d13.xgym.viewmodel.WorkoutViewModel
 fun WorkoutScreen(nav: NavController, vm: WorkoutViewModel) {
     val ui by vm.ui.collectAsStateWithLifecycle()
     var repsText by remember { mutableStateOf("") }
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> vm.resumeSessionTimer()
+                Lifecycle.Event.ON_PAUSE -> vm.pauseSessionTimer()
+                else -> {}
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     Column(
         Modifier.fillMaxSize().safeDrawingPadding().padding(24.dp),
@@ -44,6 +64,8 @@ fun WorkoutScreen(nav: NavController, vm: WorkoutViewModel) {
         verticalArrangement = Arrangement.SpaceBetween
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(formatHMS(ui.sessionElapsedPausedMs), style = MaterialTheme.typography.titleSmall)
+            Spacer(Modifier.height(8.dp))
             Text(ui.exerciseName, style = MaterialTheme.typography.headlineMedium)
             Text("Serie ${ui.setNumber}", style = MaterialTheme.typography.titleMedium)
         }
@@ -134,6 +156,17 @@ fun WorkoutScreen(nav: NavController, vm: WorkoutViewModel) {
                     vm.setReps(repsText.toIntOrNull() ?: 0)
                     repsText = ""
                 }) { Text("Guardar") }
+            }
+        )
+    }
+
+    if (ui.showRestAlarm) {
+        AlertDialog(
+            onDismissRequest = { vm.dismissRestAlarm() },
+            title = { Text("¡Hora de descanso!", style = MaterialTheme.typography.headlineSmall) },
+            text = { Text("Se cumplió el tiempo de descanso configurado.") },
+            confirmButton = {
+                TextButton(onClick = { vm.dismissRestAlarm() }) { Text("OK") }
             }
         )
     }

@@ -1,9 +1,11 @@
 package com.d13.xgym.viewmodel
 
 import android.app.Application
+import android.os.Vibrator
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.d13.xgym.data.AppDatabase
+import com.d13.xgym.data.Preferences
 import com.d13.xgym.data.Session
 import com.d13.xgym.data.SetRecord
 import com.d13.xgym.data.SetWithExercise
@@ -31,13 +33,25 @@ data class WorkoutUiState(
     val elapsedMs: Long = 0,
     /** Serie recién terminada, pendiente de capturar reps */
     val pendingSetId: Long? = null,
-    val finishedSets: List<SetWithExercise> = emptyList()
+    val finishedSets: List<SetWithExercise> = emptyList(),
+    /** true cuando se cumple el tiempo de descanso configurado y debe mostrar alerta */
+    val showRestAlarm: Boolean = false,
+    /** true si la alarma ya se disparó en el descanso actual (no repetir) */
+    val restAlarmFired: Boolean = false,
+    /** Inicio de la sesión (epoch ms) para el cronómetro total */
+    val sessionStartTs: Long? = null,
+    /** Milisegundos acumulados de la sesión (pausado) */
+    val sessionElapsedPausedMs: Long = 0,
+    /** true si la sesión está activa en la pantalla de entrenamiento */
+    val sessionActive: Boolean = false
 )
 
 class WorkoutViewModel(app: Application) : AndroidViewModel(app) {
     private val db = AppDatabase.get(app)
     private val workoutDao = db.workoutDao()
     val catalogDao = db.catalogDao()
+    private val prefs = Preferences(app)
+    private val vibrator = app.getSystemService(Vibrator::class.java)
 
     private val _ui = MutableStateFlow(WorkoutUiState())
     val ui: StateFlow<WorkoutUiState> = _ui.asStateFlow()
@@ -46,8 +60,26 @@ class WorkoutViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             while (true) {
                 _ui.update {
-                    if (it.phase == Phase.IDLE) it
-                    else it.copy(elapsedMs = System.currentTimeMillis() - it.phaseStartTs)
+                    val newElapsed = if (it.phase == Phase.IDLE) 0 else System.currentTimeMillis() - it.phaseStartTs
+                    val restDurationMs = prefs.restDurationSeconds * 1000L
+                    // Dispara una sola vez por descanso: restAlarmFired queda en true
+                    // hasta que se sale de la fase RESTING.
+                    val fireNow = it.phase == Phase.RESTING && newElapsed >= restDurationMs && !it.restAlarmFired
+                    if (fireNow) {
+                        vibrator?.vibrate(500)
+                    }
+                    // Cronómetro de sesión total
+                    val sessionTotalMs = if (it.sessionActive && it.sessionStartTs != null) {
+                        System.currentTimeMillis() - it.sessionStartTs + it.sessionElapsedPausedMs
+                    } else {
+                        it.sessionElapsedPausedMs
+                    }
+                    it.copy(
+                        elapsedMs = newElapsed,
+                        showRestAlarm = if (it.phase == Phase.RESTING) fireNow || it.showRestAlarm else false,
+                        restAlarmFired = if (it.phase == Phase.RESTING) it.restAlarmFired || fireNow else false,
+                        sessionElapsedPausedMs = sessionTotalMs.toLong()
+                    )
                 }
                 delay(200)
             }
@@ -76,7 +108,8 @@ class WorkoutViewModel(app: Application) : AndroidViewModel(app) {
                     exerciseName = exerciseName,
                     setNumber = 1,
                     phase = Phase.IDLE,
-                    elapsedMs = 0
+                    elapsedMs = 0,
+                    sessionActive = true
                 )
             }
         }
@@ -84,7 +117,29 @@ class WorkoutViewModel(app: Application) : AndroidViewModel(app) {
 
     fun startSet() {
         val now = System.currentTimeMillis()
-        _ui.update { it.copy(phase = Phase.EXERCISING, phaseStartTs = now, elapsedMs = 0) }
+        _ui.update { it ->
+            val newSessionStartTs = it.sessionStartTs ?: now
+            it.copy(
+                phase = Phase.EXERCISING,
+                phaseStartTs = now,
+                elapsedMs = 0,
+                sessionStartTs = newSessionStartTs,
+                sessionActive = true
+            )
+        }
+    }
+
+    fun pauseSessionTimer() {
+        _ui.update { it.copy(sessionActive = false) }
+    }
+
+    fun resumeSessionTimer() {
+        _ui.update {
+            it.copy(
+                sessionActive = true,
+                sessionStartTs = System.currentTimeMillis() - (it.sessionElapsedPausedMs - it.sessionElapsedPausedMs % 1000)
+            )
+        }
     }
 
     /** Termina la serie: guarda el registro y pasa a descanso. */
@@ -175,7 +230,7 @@ class WorkoutViewModel(app: Application) : AndroidViewModel(app) {
             }
             closeOpenRest(now)
             workoutDao.session(sessionId)?.let {
-                workoutDao.updateSession(it.copy(endTs = now))
+                workoutDao.updateSession(it.copy(endTs = now, durationMs = s.sessionElapsedPausedMs))
             }
             _ui.value = WorkoutUiState()
             onDone(sessionId)
@@ -191,6 +246,22 @@ class WorkoutViewModel(app: Application) : AndroidViewModel(app) {
                     workoutDao.updateSet(it.set.copy(restEndTs = now))
                 }
             }
+        }
+    }
+
+    fun dismissRestAlarm() {
+        _ui.update { it.copy(showRestAlarm = false) }
+    }
+
+    fun clearAllSessions() {
+        viewModelScope.launch {
+            workoutDao.deleteAllSessions()
+        }
+    }
+
+    fun clearTodaysSessions() {
+        viewModelScope.launch {
+            workoutDao.deleteSessionsByDate(LocalDate.now().toString())
         }
     }
 }

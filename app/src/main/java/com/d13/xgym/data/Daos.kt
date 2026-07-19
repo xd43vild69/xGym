@@ -80,4 +80,10 @@ interface WorkoutDao {
            ORDER BY r.exerciseStartTs"""
     )
     suspend fun setsForSession(sessionId: Long): List<SetWithExercise>
+
+    @Query("DELETE FROM sessions WHERE date = :date")
+    suspend fun deleteSessionsByDate(date: String)
+
+    @Query("DELETE FROM sessions")
+    suspend fun deleteAllSessions()
 }

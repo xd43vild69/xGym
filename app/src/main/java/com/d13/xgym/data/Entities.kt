@@ -58,7 +58,9 @@ data class Session(
     /** Fecha local yyyy-MM-dd de la sesión */
     val date: String,
     val startTs: Long,
-    val endTs: Long? = null
+    val endTs: Long? = null,
+    /** Tiempo total de entrenamiento en milisegundos (ejercicio + descanso) */
+    val durationMs: Long? = null
 )
 
 @Entity(

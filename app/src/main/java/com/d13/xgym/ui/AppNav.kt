@@ -7,12 +7,18 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.d13.xgym.data.Preferences
 import com.d13.xgym.viewmodel.WorkoutViewModel
+import androidx.compose.runtime.remember
+import android.content.Context
+import androidx.compose.ui.platform.LocalContext
 
 @Composable
 fun AppNav() {
     val nav = rememberNavController()
     val vm: WorkoutViewModel = viewModel()
+    val context = LocalContext.current
+    val prefs = remember { Preferences(context) }
 
     NavHost(navController = nav, startDestination = "home") {
         composable("home") { HomeScreen(nav) }
@@ -44,5 +50,6 @@ fun AppNav() {
             SummaryScreen(nav, it.arguments!!.getLong("sessionId"))
         }
         composable("history") { HistoryScreen(nav) }
+        composable("settings") { SettingsScreen(nav, prefs, vm) }
     }
 }
