@@ -65,19 +65,41 @@ class WorkoutViewModel(app: Application) : AndroidViewModel(app) {
             
             val activeSession = workoutDao.getActiveSession()
             if (activeSession != null) {
-                val sets = workoutDao.setsForSession(activeSession.id)
-                val lastSet = sets.lastOrNull()
-                _ui.update {
-                    it.copy(
-                        sessionId = activeSession.id,
-                        categoryId = activeSession.categoryId,
-                        sessionStartTs = activeSession.startTs,
-                        phase = Phase.IDLE,
-                        exerciseId = lastSet?.set?.exerciseId,
-                        exerciseName = lastSet?.exerciseName ?: "",
-                        setNumber = (lastSet?.set?.setNumber ?: 0) + 1
-                    )
+                val active = prefs.activeExercise
+                if (active != null) {
+                    // Había una serie en curso al perder foco: restaurar EXERCISING
+                    // para que el usuario pueda terminarla donde la dejó.
+                    _ui.update {
+                        it.copy(
+                            sessionId = activeSession.id,
+                            categoryId = active.categoryId,
+                            subcategoryId = active.subcategoryId,
+                            sessionStartTs = activeSession.startTs,
+                            phase = Phase.EXERCISING,
+                            phaseStartTs = active.phaseStartTs,
+                            exerciseId = active.exerciseId,
+                            exerciseName = active.exerciseName,
+                            setNumber = active.setNumber
+                        )
+                    }
+                } else {
+                    val sets = workoutDao.setsForSession(activeSession.id)
+                    val lastSet = sets.lastOrNull()
+                    _ui.update {
+                        it.copy(
+                            sessionId = activeSession.id,
+                            categoryId = activeSession.categoryId,
+                            sessionStartTs = activeSession.startTs,
+                            phase = Phase.IDLE,
+                            exerciseId = lastSet?.set?.exerciseId,
+                            exerciseName = lastSet?.exerciseName ?: "",
+                            setNumber = (lastSet?.set?.setNumber ?: 0) + 1
+                        )
+                    }
                 }
+            } else {
+                // No hay sesión activa: descartar cualquier marcador obsoleto.
+                prefs.activeExercise = null
             }
 
             while (true) {
@@ -105,6 +127,28 @@ class WorkoutViewModel(app: Application) : AndroidViewModel(app) {
                 delay(200)
             }
         }
+    }
+
+    /** Persiste el ejercicio en curso (fase EXERCISING) para poder recuperarlo. */
+    private fun persistActiveExercise() {
+        val s = _ui.value
+        val exId = s.exerciseId
+        val catId = s.categoryId
+        if (s.phase == Phase.EXERCISING && exId != null && catId != null) {
+            prefs.activeExercise = com.d13.xgym.data.ActiveExercise(
+                categoryId = catId,
+                subcategoryId = s.subcategoryId ?: -1L,
+                exerciseId = exId,
+                exerciseName = s.exerciseName,
+                setNumber = s.setNumber,
+                phaseStartTs = s.phaseStartTs
+            )
+        }
+    }
+
+    /** Limpia el marcador de serie en curso. */
+    private fun clearActiveExercise() {
+        prefs.activeExercise = null
     }
 
     private fun sendServiceAction(action: String, extras: (Intent.() -> Unit)? = null) {
@@ -144,6 +188,7 @@ class WorkoutViewModel(app: Application) : AndroidViewModel(app) {
                     elapsedMs = 0
                 )
             }
+            clearActiveExercise()
         }
     }
 
@@ -216,6 +261,7 @@ class WorkoutViewModel(app: Application) : AndroidViewModel(app) {
                 sessionStartTs = newSessionStartTs
             )
         }
+        persistActiveExercise()
     }
 
     /** Termina la serie: guarda el registro y pasa a descanso. */
@@ -245,6 +291,8 @@ class WorkoutViewModel(app: Application) : AndroidViewModel(app) {
                     restDurationMs = prefs.restDurationSeconds * 1000L
                 )
             }
+            // La serie ya quedó registrada; ya no hay ejercicio "en curso".
+            clearActiveExercise()
             sendServiceAction(WorkoutService.ACTION_START_REST) {
                 putExtra(WorkoutService.EXTRA_REST_START_TS, now)
                 putExtra(WorkoutService.EXTRA_REST_DURATION_MS, prefs.restDurationSeconds * 1000L)
@@ -272,6 +320,7 @@ class WorkoutViewModel(app: Application) : AndroidViewModel(app) {
             closeOpenRest(now)
             sendServiceAction(WorkoutService.ACTION_STOP_REST)
             _ui.update { it.copy(phase = Phase.EXERCISING, phaseStartTs = now, elapsedMs = 0) }
+            persistActiveExercise()
         }
     }
 
@@ -281,6 +330,7 @@ class WorkoutViewModel(app: Application) : AndroidViewModel(app) {
             closeOpenRest(now)
             sendServiceAction(WorkoutService.ACTION_STOP_REST)
             _ui.update { it.copy(phase = Phase.IDLE, phaseStartTs = now, elapsedMs = 0) }
+            clearActiveExercise()
         }
     }
 
@@ -299,6 +349,7 @@ class WorkoutViewModel(app: Application) : AndroidViewModel(app) {
                     elapsedMs = 0
                 )
             }
+            clearActiveExercise()
         }
     }
 
@@ -324,6 +375,7 @@ class WorkoutViewModel(app: Application) : AndroidViewModel(app) {
             workoutDao.session(sessionId)?.let {
                 workoutDao.updateSession(it.copy(endTs = now, durationMs = s.sessionElapsedMs))
             }
+            clearActiveExercise()
             _ui.value = WorkoutUiState()
             onDone(sessionId)
         }
@@ -373,6 +425,7 @@ class WorkoutViewModel(app: Application) : AndroidViewModel(app) {
             workoutDao.session(sessionId)?.let { session ->
                 workoutDao.updateSession(session.copy(endTs = now, durationMs = s.sessionElapsedMs))
             }
+            clearActiveExercise()
             _ui.value = WorkoutUiState()
         }
     }
@@ -418,6 +471,7 @@ class WorkoutViewModel(app: Application) : AndroidViewModel(app) {
                     sessionElapsedMs = 0
                 )
             }
+            clearActiveExercise()
         }
     }
 

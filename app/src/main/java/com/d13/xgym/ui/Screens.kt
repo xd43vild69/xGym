@@ -88,9 +88,6 @@ fun HomeScreen(nav: NavController, vm: WorkoutViewModel) {
                 Text("Historial")
             }
         }
-        OutlinedButton(onClick = { nav.navigate("settings") }, Modifier.fillMaxWidth()) {
-            Text("⚙ Ajustes")
-        }
     }
 
     if (showActiveSessionPrompt) {
