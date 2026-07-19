@@ -70,7 +70,7 @@ class WorkoutViewModel(app: Application) : AndroidViewModel(app) {
                     }
                     // Cronómetro de sesión total
                     val sessionTotalMs = if (it.sessionActive && it.sessionStartTs != null) {
-                        System.currentTimeMillis() - it.sessionStartTs + it.sessionElapsedPausedMs
+                        System.currentTimeMillis() - it.sessionStartTs
                     } else {
                         it.sessionElapsedPausedMs
                     }
@@ -78,7 +78,7 @@ class WorkoutViewModel(app: Application) : AndroidViewModel(app) {
                         elapsedMs = newElapsed,
                         showRestAlarm = if (it.phase == Phase.RESTING) fireNow || it.showRestAlarm else false,
                         restAlarmFired = if (it.phase == Phase.RESTING) it.restAlarmFired || fireNow else false,
-                        sessionElapsedPausedMs = sessionTotalMs.toLong()
+                        sessionElapsedPausedMs = sessionTotalMs
                     )
                 }
                 delay(200)
@@ -109,7 +109,7 @@ class WorkoutViewModel(app: Application) : AndroidViewModel(app) {
                     setNumber = 1,
                     phase = Phase.IDLE,
                     elapsedMs = 0,
-                    sessionActive = true
+                    sessionActive = false
                 )
             }
         }
@@ -117,6 +117,15 @@ class WorkoutViewModel(app: Application) : AndroidViewModel(app) {
 
     fun startSet() {
         val now = System.currentTimeMillis()
+        val isFirstSet = _ui.value.sessionStartTs == null
+        if (isFirstSet) {
+            val sessionId = _ui.value.sessionId ?: return
+            viewModelScope.launch {
+                workoutDao.session(sessionId)?.let {
+                    workoutDao.updateSession(it.copy(startTs = now))
+                }
+            }
+        }
         _ui.update { it ->
             val newSessionStartTs = it.sessionStartTs ?: now
             it.copy(
@@ -135,6 +144,9 @@ class WorkoutViewModel(app: Application) : AndroidViewModel(app) {
 
     fun resumeSessionTimer() {
         _ui.update {
+            // No reanudar si el usuario todavía no presionó "Iniciar serie" por
+            // primera vez: sessionStartTs sigue null hasta ese momento.
+            if (it.sessionStartTs == null) return@update it
             it.copy(
                 sessionActive = true,
                 sessionStartTs = System.currentTimeMillis() - (it.sessionElapsedPausedMs - it.sessionElapsedPausedMs % 1000)
