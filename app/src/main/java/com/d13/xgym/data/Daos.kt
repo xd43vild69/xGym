@@ -12,11 +12,14 @@ interface CatalogDao {
     @Query("SELECT * FROM categories ORDER BY id")
     fun categories(): Flow<List<Category>>
 
-    @Query("SELECT * FROM subcategories WHERE categoryId = :categoryId ORDER BY id")
+    @Query("SELECT * FROM subcategories WHERE categoryId = :categoryId ORDER BY orderIndex ASC, id ASC")
     fun subcategories(categoryId: Long): Flow<List<Subcategory>>
 
-    @Query("SELECT * FROM subcategories WHERE categoryId = :categoryId ORDER BY id")
+    @Query("SELECT * FROM subcategories WHERE categoryId = :categoryId ORDER BY orderIndex ASC, id ASC")
     suspend fun subcategoriesOnce(categoryId: Long): List<Subcategory>
+
+    @Update
+    suspend fun updateSubcategories(subcategories: List<Subcategory>)
 
     @Query("SELECT * FROM exercises WHERE subcategoryId = :subcategoryId ORDER BY orderIndex ASC, name ASC")
     fun exercises(subcategoryId: Long): Flow<List<Exercise>>

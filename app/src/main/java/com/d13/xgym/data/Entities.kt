@@ -24,7 +24,8 @@ data class Category(
 data class Subcategory(
     @PrimaryKey val id: Long,
     val categoryId: Long,
-    val name: String
+    val name: String,
+    val orderIndex: Int = 0
 )
 
 @Entity(

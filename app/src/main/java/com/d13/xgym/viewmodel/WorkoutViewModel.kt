@@ -125,6 +125,16 @@ class WorkoutViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** Reordena la lista de subcategorías actualizando el orderIndex de cada una. */
+    fun reorderSubcategories(subcategories: List<com.d13.xgym.data.Subcategory>) {
+        viewModelScope.launch {
+            val updated = subcategories.mapIndexed { index, sub ->
+                sub.copy(orderIndex = index)
+            }
+            catalogDao.updateSubcategories(updated)
+        }
+    }
+
     /** Elimina un ejercicio de la base de datos. */
     fun deleteExercise(exercise: com.d13.xgym.data.Exercise) {
         viewModelScope.launch {

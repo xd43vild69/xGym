@@ -106,23 +106,89 @@ fun CategoryScreen(nav: NavController, vm: WorkoutViewModel) {
 
 @Composable
 fun SubcategoryScreen(nav: NavController, vm: WorkoutViewModel, categoryId: Long) {
-    val subs by vm.catalogDao.subcategories(categoryId).collectAsStateWithLifecycle(emptyList())
+    val dbSubs by vm.catalogDao.subcategories(categoryId).collectAsStateWithLifecycle(emptyList())
+    var subs by remember(dbSubs) { mutableStateOf(dbSubs) }
+    var draggedItemIndex by remember { mutableStateOf<Int?>(null) }
+    var dragOffset by remember { mutableStateOf(0f) }
+
     // Categorías con una sola subcategoría saltan directo a ejercicios.
-    if (subs.size == 1) {
-        androidx.compose.runtime.LaunchedEffect(subs) {
-            nav.navigate("exercises/$categoryId/${subs[0].id}") {
+    if (dbSubs.size == 1) {
+        androidx.compose.runtime.LaunchedEffect(dbSubs) {
+            nav.navigate("exercises/$categoryId/${dbSubs[0].id}") {
                 popUpTo("subcategories/{categoryId}") { inclusive = true }
             }
         }
         return
     }
-    ListScaffold("Elige subcategoría") {
-        items(subs) { sub ->
-            Card(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
-                TextButton(
-                    onClick = { nav.navigate("exercises/$categoryId/${sub.id}") },
-                    Modifier.fillMaxWidth()
-                ) { Text(sub.name, style = MaterialTheme.typography.titleMedium) }
+
+    Column(Modifier.fillMaxSize().safeDrawingPadding().padding(24.dp)) {
+        Text("Elige subcategoría", style = MaterialTheme.typography.headlineMedium)
+        Spacer(Modifier.height(16.dp))
+
+        LazyColumn {
+            itemsIndexed(subs, key = { _, sub -> sub.id }) { index, sub ->
+                val isDragged = index == draggedItemIndex
+                val translationY = if (isDragged) dragOffset else 0f
+
+                Card(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 6.dp)
+                        .graphicsLayer { this.translationY = translationY }
+                        .zIndex(if (isDragged) 1f else 0f)
+                        .pointerInput(sub.id) {
+                            detectDragGesturesAfterLongPress(
+                                onDragStart = {
+                                    // Buscar la posición por id (estable), no por `index`.
+                                    draggedItemIndex = subs
+                                        .indexOfFirst { it.id == sub.id }
+                                        .takeIf { it >= 0 }
+                                },
+                                onDrag = { change, dragAmount ->
+                                    change.consume()
+                                    dragOffset += dragAmount.y
+
+                                    val currentIdx = draggedItemIndex ?: return@detectDragGesturesAfterLongPress
+                                    val itemHeight = size.height + 12.dp.toPx()
+
+                                    var newIdx = currentIdx
+                                    if (dragOffset > itemHeight && currentIdx < subs.size - 1) {
+                                        newIdx = currentIdx + 1
+                                        dragOffset -= itemHeight
+                                    } else if (dragOffset < -itemHeight && currentIdx > 0) {
+                                        newIdx = currentIdx - 1
+                                        dragOffset += itemHeight
+                                    }
+
+                                    if (newIdx != currentIdx) {
+                                        subs = subs.toMutableList().apply {
+                                            val item = removeAt(currentIdx)
+                                            add(newIdx, item)
+                                        }
+                                        draggedItemIndex = newIdx
+                                    }
+                                },
+                                onDragEnd = {
+                                    draggedItemIndex = null
+                                    dragOffset = 0f
+                                    vm.reorderSubcategories(subs)
+                                },
+                                onDragCancel = {
+                                    draggedItemIndex = null
+                                    dragOffset = 0f
+                                }
+                            )
+                        }
+                ) {
+                    TextButton(
+                        onClick = {
+                            if (draggedItemIndex == null) {
+                                nav.navigate("exercises/$categoryId/${sub.id}")
+                            }
+                        },
+                        Modifier.fillMaxWidth()
+                    ) { Text(sub.name, style = MaterialTheme.typography.titleMedium) }
+                }
             }
         }
     }
