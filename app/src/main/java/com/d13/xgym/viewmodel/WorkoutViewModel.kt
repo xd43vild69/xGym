@@ -43,7 +43,9 @@ data class WorkoutUiState(
     /** Inicio de la sesión (epoch ms) para el cronómetro total */
     val sessionStartTs: Long? = null,
     /** Milisegundos transcurridos en total para la sesión, nunca se pausa */
-    val sessionElapsedMs: Long = 0
+    val sessionElapsedMs: Long = 0,
+    /** Duración del descanso en ms (se cachea al iniciar descanso para evitar leer disco) */
+    val restDurationMs: Long = 0L
 )
 
 class WorkoutViewModel(app: Application) : AndroidViewModel(app) {
@@ -63,36 +65,42 @@ class WorkoutViewModel(app: Application) : AndroidViewModel(app) {
             
             val activeSession = workoutDao.getActiveSession()
             if (activeSession != null) {
+                val sets = workoutDao.setsForSession(activeSession.id)
+                val lastSet = sets.lastOrNull()
                 _ui.update {
                     it.copy(
                         sessionId = activeSession.id,
                         categoryId = activeSession.categoryId,
                         sessionStartTs = activeSession.startTs,
-                        phase = Phase.IDLE
+                        phase = Phase.IDLE,
+                        exerciseId = lastSet?.set?.exerciseId,
+                        exerciseName = lastSet?.exerciseName ?: "",
+                        setNumber = (lastSet?.set?.setNumber ?: 0) + 1
                     )
                 }
             }
 
             while (true) {
-                _ui.update {
-                    val newElapsed = if (it.phase == Phase.IDLE) 0 else System.currentTimeMillis() - it.phaseStartTs
-                    val restDurationMs = prefs.restDurationSeconds * 1000L
-                    // Dispara una sola vez por descanso: restAlarmFired queda en true
-                    // hasta que se sale de la fase RESTING.
-                    val fireNow = it.phase == Phase.RESTING && newElapsed >= restDurationMs && !it.restAlarmFired
-                    
-                    // Cronómetro de sesión total continuo e ininterrumpido
-                    val sessionTotalMs = if (it.sessionStartTs != null) {
-                        System.currentTimeMillis() - it.sessionStartTs
-                    } else {
-                        0
+                if (_ui.value.phase != Phase.IDLE || _ui.value.sessionStartTs != null) {
+                    _ui.update {
+                        val newElapsed = if (it.phase == Phase.IDLE) 0 else System.currentTimeMillis() - it.phaseStartTs
+                        // Dispara una sola vez por descanso: restAlarmFired queda en true
+                        // hasta que se sale de la fase RESTING.
+                        val fireNow = it.phase == Phase.RESTING && newElapsed >= it.restDurationMs && !it.restAlarmFired
+                        
+                        // Cronómetro de sesión total continuo e ininterrumpido
+                        val sessionTotalMs = if (it.sessionStartTs != null) {
+                            System.currentTimeMillis() - it.sessionStartTs
+                        } else {
+                            0
+                        }
+                        it.copy(
+                            elapsedMs = newElapsed,
+                            showRestAlarm = if (it.phase == Phase.RESTING) fireNow || it.showRestAlarm else false,
+                            restAlarmFired = if (it.phase == Phase.RESTING) it.restAlarmFired || fireNow else false,
+                            sessionElapsedMs = sessionTotalMs
+                        )
                     }
-                    it.copy(
-                        elapsedMs = newElapsed,
-                        showRestAlarm = if (it.phase == Phase.RESTING) fireNow || it.showRestAlarm else false,
-                        restAlarmFired = if (it.phase == Phase.RESTING) it.restAlarmFired || fireNow else false,
-                        sessionElapsedMs = sessionTotalMs
-                    )
                 }
                 delay(200)
             }
@@ -104,7 +112,11 @@ class WorkoutViewModel(app: Application) : AndroidViewModel(app) {
             this.action = action
             extras?.invoke(this)
         }
-        ContextCompat.startForegroundService(getApplication<Application>(), intent)
+        if (action == WorkoutService.ACTION_START_WORKOUT || action == WorkoutService.ACTION_START_REST) {
+            ContextCompat.startForegroundService(getApplication<Application>(), intent)
+        } else {
+            getApplication<Application>().startService(intent)
+        }
     }
 
     /** Crea la sesión (si no existe) y fija el ejercicio activo. */
@@ -229,7 +241,8 @@ class WorkoutViewModel(app: Application) : AndroidViewModel(app) {
                     phaseStartTs = now,
                     elapsedMs = 0,
                     pendingSetId = setId,
-                    setNumber = it.setNumber + 1
+                    setNumber = it.setNumber + 1,
+                    restDurationMs = prefs.restDurationSeconds * 1000L
                 )
             }
             sendServiceAction(WorkoutService.ACTION_START_REST) {
@@ -405,6 +418,14 @@ class WorkoutViewModel(app: Application) : AndroidViewModel(app) {
                     sessionElapsedMs = 0
                 )
             }
+        }
+    }
+
+    /** Reinicia el servicio en primer plano con el tiempo de inicio guardado. */
+    fun resumeWorkoutService() {
+        val startTs = _ui.value.sessionStartTs ?: return
+        sendServiceAction(WorkoutService.ACTION_START_WORKOUT) {
+            putExtra(WorkoutService.EXTRA_SESSION_START_TS, startTs)
         }
     }
 }

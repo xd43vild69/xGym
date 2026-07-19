@@ -18,6 +18,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.cancel
 
 class WorkoutService : Service() {
 
@@ -40,12 +41,30 @@ class WorkoutService : Service() {
     private var restJob: Job? = null
 
     private var sessionStartTs: Long = 0
+    private var isForeground = false
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        serviceScope.cancel()
+    }
+
+    private fun ensureForeground() {
+        if (!isForeground) {
+            val notification = buildNotification("00:00")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_HEALTH)
+            } else {
+                startForeground(NOTIFICATION_ID, notification)
+            }
+            isForeground = true
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -58,11 +77,13 @@ class WorkoutService : Service() {
                 stopForegroundService()
             }
             ACTION_START_REST -> {
+                ensureForeground()
                 val restStartTs = intent.getLongExtra(EXTRA_REST_START_TS, System.currentTimeMillis())
                 val durationMs = intent.getLongExtra(EXTRA_REST_DURATION_MS, 0L)
                 startRestTimer(restStartTs, durationMs)
             }
             ACTION_STOP_REST -> {
+                ensureForeground()
                 cancelRestTimer()
             }
         }
@@ -70,14 +91,7 @@ class WorkoutService : Service() {
     }
 
     private fun startForegroundService() {
-        // Build initial notification
-        val notification = buildNotification("00:00")
-        
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_HEALTH)
-        } else {
-            startForeground(NOTIFICATION_ID, notification)
-        }
+        ensureForeground()
 
         // Start timer loop to update notification
         timerJob?.cancel()
@@ -98,6 +112,7 @@ class WorkoutService : Service() {
         } else {
             stopForeground(true)
         }
+        isForeground = false
         stopSelf()
     }
 

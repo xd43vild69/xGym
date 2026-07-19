@@ -100,6 +100,7 @@ fun HomeScreen(nav: NavController, vm: WorkoutViewModel) {
             text = { Text("Actualmente tienes un entrenamiento en curso. ¿Deseas retomarlo o empezar uno nuevo?") },
             confirmButton = {
                 TextButton(onClick = {
+                    vm.resumeWorkoutService()
                     nav.navigate("workout")
                     showActiveSessionPrompt = false
                 }) { Text("Retomar") }

@@ -61,7 +61,11 @@ fun WorkoutScreen(nav: NavController, vm: WorkoutViewModel) {
             )
             Text(formatHMS(ui.sessionElapsedMs), style = MaterialTheme.typography.displaySmall)
             Spacer(Modifier.height(24.dp))
-            Text(ui.exerciseName, style = MaterialTheme.typography.headlineMedium)
+            Text(
+                ui.exerciseName.ifEmpty { "Selecciona un ejercicio para comenzar" },
+                style = MaterialTheme.typography.headlineMedium,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
             Text(
                 "Serie ${ui.setNumber}",
                 style = MaterialTheme.typography.titleMedium,
@@ -90,7 +94,8 @@ fun WorkoutScreen(nav: NavController, vm: WorkoutViewModel) {
             when (ui.phase) {
                 Phase.IDLE -> Button(
                     onClick = { vm.startSet() },
-                    Modifier.fillMaxWidth().height(72.dp)
+                    Modifier.fillMaxWidth().height(72.dp),
+                    enabled = ui.exerciseId != null
                 ) { Text("Iniciar serie", style = MaterialTheme.typography.titleLarge) }
 
                 Phase.EXERCISING -> Button(
